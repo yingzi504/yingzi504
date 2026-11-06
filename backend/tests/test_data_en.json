@@ -1,0 +1,65 @@
+{
+  "resume_data": {
+    "name": "John Smith",
+    "anonymized_name": "John Smith",
+    "anonymized_name_cn": "John先生",
+    "phone": "+1 (555) 123-4567",
+    "email": "john.smith@example.com",
+    "location": "San Francisco, CA",
+    "age": 35,
+    "gender": "male",
+    "position": "Senior Software Engineer",
+    "position_en": "Senior Software Engineer",
+    "total_exp": "10 years",
+    "summary": "Experienced software engineer with 10+ years in full-stack development. Proficient in Python, Go, and JavaScript. Strong background in distributed systems, microservices architecture, and cloud infrastructure (AWS, GCP). Led multiple cross-functional teams delivering high-impact products.",
+    "tech_skills": "Python, Go, JavaScript, TypeScript, React, Node.js, AWS, GCP, Docker, Kubernetes, PostgreSQL, Redis, gRPC, GraphQL",
+    "lang_skills": "English (Native), Chinese (Intermediate)",
+    "education": [
+      {
+        "school": "University of California, Berkeley",
+        "period": "2010.08 - 2014.05",
+        "degree": "Bachelor",
+        "major": "Computer Science"
+      }
+    ],
+    "work": [
+      {
+        "company": "TechCorp Inc.",
+        "period": "2020.06 - Present",
+        "role": "Senior Software Engineer",
+        "tasks": "Architected and built a real-time data processing pipeline handling 10M+ events/day using Kafka and Flink.\nLed migration of 15 microservices from monolithic architecture, reducing deployment time by 80%.\nDesigned and implemented GraphQL API gateway serving 200+ internal and external clients.\nMentored 4 junior engineers through structured code reviews and pair programming sessions."
+      },
+      {
+        "company": "StartupXYZ",
+        "period": "2017.03 - 2020.05",
+        "role": "Full Stack Engineer",
+        "tasks": "Built SaaS platform from MVP to production serving 50K+ users, using React + Node.js + PostgreSQL.\nImplemented CI/CD pipelines with GitHub Actions and ArgoCD, achieving 99.9% deployment success rate.\nReduced cloud infrastructure costs by 35% through resource optimization and reserved instance planning."
+      },
+      {
+        "company": "WebAgency Co.",
+        "period": "2014.08 - 2017.02",
+        "role": "Software Developer",
+        "tasks": "Developed responsive web applications for 20+ client projects using AngularJS and Django.\nBuilt RESTful APIs with automated API documentation using Swagger/OpenAPI.\nWrote comprehensive unit and integration tests achieving 90% code coverage."
+      }
+    ],
+    "project": [
+      {
+        "company": "TechCorp Inc.",
+        "period": "2021.09 - 2023.06",
+        "name": "Real-time Analytics Platform",
+        "role": "Tech Lead",
+        "tasks": "Designed event-driven architecture processing 50TB+ daily data with sub-second latency.\nBuilt stream processing engine using Kafka Streams and Apache Flink for real-time aggregations.\nImplemented adaptive query engine that reduced P99 query latency by 60% through materialized views."
+      },
+      {
+        "company": "StartupXYZ",
+        "period": "2018.01 - 2019.11",
+        "name": "Multi-tenant CMS Platform",
+        "role": "Lead Developer",
+        "tasks": "Architected multi-tenant database isolation strategy serving 500+ enterprise customers.\nBuilt plugin system supporting 30+ third-party integrations with hot-reload capability.\nReduced infrastructure cost by 40% through Kubernetes auto-scaling and spot instance optimization."
+      }
+    ],
+    "language": "EN"
+  },
+  "template_type": "vertical",
+  "generate_pdf": false
+}

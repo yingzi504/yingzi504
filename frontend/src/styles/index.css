@@ -1,0 +1,56 @@
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #F0F2F5;
+  color: #333;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 自定义 Element Plus 主题 */
+:root {
+  --app-primary: #954DFF;
+  --app-primary-rgb: 149, 77, 255;
+  --app-primary-dark: #773ECC;
+  --app-primary-dark-rgb: 119, 62, 204;
+  --app-primary-light-3: #B582FF;
+  --app-primary-light-5: #CAA6FF;
+  --app-primary-light-7: #DFCAFF;
+  --app-primary-light-8: #EADBFF;
+  --app-primary-light-9: #F4EDFF;
+  --app-primary-soft: #F8F3FF;
+  --app-primary-surface: #FDFBFF;
+  --el-color-primary: var(--app-primary);
+  --el-color-primary-rgb: var(--app-primary-rgb);
+  --el-color-primary-dark-2: var(--app-primary-dark);
+  --el-color-primary-light-3: var(--app-primary-light-3);
+  --el-color-primary-light-5: var(--app-primary-light-5);
+  --el-color-primary-light-7: var(--app-primary-light-7);
+  --el-color-primary-light-8: var(--app-primary-light-8);
+  --el-color-primary-light-9: var(--app-primary-light-9);
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}

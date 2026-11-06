@@ -1,0 +1,41 @@
+# Web 框架
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# 数据库
+sqlalchemy>=2.0.25
+aiosqlite>=0.19.0
+
+# 数据验证
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# 文件处理
+python-multipart>=0.0.6
+python-pptx>=0.6.23
+
+# ========================================
+# 文档解析 - 轻量级方案（推荐）
+# ========================================
+# 不使用 unstructured（会下载 torch），改用轻量库：
+pymupdf>=1.24.0        # PDF 解析（轻量）
+python-docx>=1.1.0     # Word 解析（轻量）
+
+# 备选：完整 unstructured 方案
+# unstructured[pdf,docx]>=0.12.0
+
+# ========================================
+# OCR
+# ========================================
+paddleocr>=2.7.0
+paddlepaddle>=2.6.0
+
+# LLM
+litellm>=1.26.0
+
+# 安全
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Surname transliteration for anonymized resumes
+pypinyin>=0.55.0

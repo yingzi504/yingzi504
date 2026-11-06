@@ -1,0 +1,330 @@
+"""诊断PPT内容重叠的根因"""
+import os
+import sys
+import re
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from app.services.smart_filler_service import SmartFillerService
+from app.schemas.resume import ResumeData, WorkItem, ProjectItem, EducationItem
+from app.services.template_config import TemplateType, ARRAY_FIELDS
+
+import traceback
+
+
+def diagnose_template_row_paragraphs():
+    """检查模板行的每个单元格的段落结构（paragraph count + 间距设置）"""
+    print("=" * 80)
+    print("🔍 诊断 1: 模板行段落结构分析")
+    print("=" * 80)
+    
+    prs = SmartFillerService._load_presentation(TemplateType.NEW_CN.value)
+    modules = SmartFillerService.collect_all_modules(prs)
+    
+    for mod in modules:
+        if not mod.table:
+            continue
+        
+        # 找到模板行
+        template_row_idx = -1
+        for ri, row in enumerate(mod.table.rows):
+            for cell in row.cells:
+                if f'{{{{{mod.name}.' in cell.text:
+                    template_row_idx = ri
+                    break
+            if template_row_idx >= 0:
+                break
+        
+        if template_row_idx < 0 and mod.name == 'skill':
+            for ri, row in enumerate(mod.table.rows):
+                for cell in row.cells:
+                    if '{{lang_skills' in cell.text or '{{tech_skills' in cell.text:
+                        template_row_idx = ri
+                        break
+                if template_row_idx >= 0:
+                    break
+        
+        if template_row_idx < 0:
+            continue
+        
+        print(f"\n📦 模块: {mod.name} (模板行索引={template_row_idx})")
+        template_row = mod.table.rows[template_row_idx]
+        
+        for ci, cell in enumerate(template_row.cells):
+            n_paras = len(cell.text_frame.paragraphs)
+            print(f"  📌 列[{ci}]: {n_paras}个段落")
+            for pi, para in enumerate(cell.text_frame.paragraphs):
+                txt_preview = para.text[:80] if para.text else "(空)"
+                # 检查段落间距
+                pPr = para._p.find('{http://schemas.openxmlformats.org/drawingml/2006/main}pPr')
+                space_before = "?"
+                space_after = "?"
+                if pPr is not None:
+                    spcAft = pPr.find('{http://schemas.openxmlformats.org/drawingml/2006/main}spcAft')
+                    spcBef = pPr.find('{http://schemas.openxmlformats.org/drawingml/2006/main}spcBef')
+                    if spcAft is not None:
+                        spcPts = spcAft.find('{http://schemas.openxmlformats.org/drawingml/2006/main}spcPts')
+                        if spcPts is not None:
+                            space_after = int(spcPts.get('val', 0)) / 100
+                    if spcBef is not None:
+                        spcPts = spcBef.find('{http://schemas.openxmlformats.org/drawingml/2006/main}spcPts')
+                        if spcPts is not None:
+                            space_before = int(spcPts.get('val', 0)) / 100
+                
+                marL = pPr.get('marL', 'N/A') if pPr is not None else 'N/A'
+                indent = pPr.get('indent', 'N/A') if pPr is not None else 'N/A'
+                
+                print(f"    段落[{pi}]: 文本='{txt_preview}'")
+                print(f"      spaceBefore={space_before}pt, spaceAfter={space_after}pt, marL={marL}, indent={indent}")
+
+
+def diagnose_estimate_vs_actual():
+    """比较 estimate_row_height 与实际填充后的行高"""
+    print("\n" + "=" * 80)
+    print("🔍 诊断 2: 估算高度 vs 实际高度对比")
+    print("=" * 80)
+    
+    # 更真实的长文本数据
+    resume_data = ResumeData(
+        name="张三",
+        position="高级软件工程师",
+        technical_area="人工智能",
+        total_exp="8年",
+        tech_skills="Python, TensorFlow, PyTorch, NLP, 机器学习, 深度学习, 自然语言处理, 计算机视觉",
+        lang_skills="中文(母语), English(流利), 日语(日常会话)",
+        lang_skills_level="高级",
+        training_exp="斯坦福大学机器学习课程, MIT深度学习课程",
+        language="CN",
+        
+        work=[
+            WorkItem(
+                company="AI创新实验室",
+                period="2021.03-至今",
+                role="高级AI工程师",
+                tasks=(
+                    "负责设计并实现基于Transformer的大规模NLP模型架构，"
+                    "包括BERT、GPT等模型的微调和部署，模型参数量达数十亿级别\n"
+                    "主导多个核心产品的AI能力从0到1的建设，包括智能客服系统、"
+                    "知识图谱构建平台、文本理解引擎等\n"
+                    "带领5人算法团队完成技术攻关，制定技术路线图，"
+                    "建立模型评估与持续迭代的工程化体系\n"
+                    "与产品团队紧密协作，将AI技术落地到实际业务场景，"
+                    "累计服务用户超过1000万\n"
+                    "负责模型性能优化，推理速度提升3倍，"
+                    "同时降低40%的服务器成本"
+                )
+            ),
+            WorkItem(
+                company="数据科技公司",
+                period="2018.07-2021.02",
+                role="机器学习工程师",
+                tasks=(
+                    "开发基于协同过滤和内容推荐的混合推荐系统，"
+                    "支持千万级用户和百万级商品\n"
+                    "设计并实现A/B测试框架，建立离线评估+在线验证的完整实验体系\n"
+                    "优化实时推荐引擎，端到端延迟控制在50ms以内\n"
+                    "负责数据管道建设，处理每日TB级用户行为数据"
+                )
+            ),
+            WorkItem(
+                company="软件开发公司",
+                period="2016.06-2018.06",
+                role="软件工程师",
+                tasks=(
+                    "参与大型Web应用的架构设计和开发\n"
+                    "编写单元测试和集成测试"
+                )
+            )
+        ],
+        
+        project=[
+            ProjectItem(
+                company="AI创新实验室",
+                period="2022.01-2023.12",
+                name="智能对话系统",
+                role="技术负责人",
+                tasks=(
+                    "设计基于RAG架构的多轮对话系统，"
+                    "结合知识图谱和向量检索实现精准问答\n"
+                    "NLU模块开发，包括意图识别、"
+                    "实体抽取、对话状态追踪等核心算法\n"
+                    "构建领域自适应训练框架"
+                )
+            ),
+            ProjectItem(
+                company="数据科技公司",
+                period="2019.05-2020.11",
+                name="个性化推荐引擎",
+                role="核心开发",
+                tasks=(
+                    "开发协同过滤算法\n"
+                    "A/B测试框架设计"
+                )
+            )
+        ],
+        
+        education=[
+            EducationItem(
+                period="2013.09-2016.06",
+                school="XX大学研究生院",
+                degree="硕士",
+                major="计算机应用技术"
+            ),
+            EducationItem(
+                period="2009.09-2013.06",
+                school="YY大学",
+                degree="本科",
+                major="软件工程"
+            )
+        ]
+    )
+    
+    try:
+        result = SmartFillerService.fill_template(
+            resume_data=resume_data,
+            template_type=TemplateType.NEW_CN,
+            generate_pdf=False,
+        )
+        print(f"\n✅ PPT生成成功!")
+        print(f"   PPT文件: {result['pptx_path']}")
+        
+        # 分析生成的PPT
+        diagnose_output_pptx(result['pptx_path'])
+        
+    except Exception as e:
+        print(f"\n❌ 生成失败: {e}")
+        traceback.print_exc()
+
+
+def diagnose_output_pptx(pptx_path: str):
+    """分析生成的PPT，检查是否有重叠"""
+    from pptx import Presentation
+    from pptx.util import Pt, Emu, Inches
+    
+    prs = Presentation(pptx_path)
+    
+    print(f"\n📊 诊断 3: 生成的PPT分析")
+    print(f"   总页数: {len(prs.slides)}")
+    
+    # 幻灯片尺寸
+    slide_w = prs.slide_width
+    slide_h = prs.slide_height
+    print(f"   幻灯片尺寸: {slide_w} x {slide_h} EMU ({slide_w/914400:.2f}\" x {slide_h/914400:.2f}\")")
+    
+    for si, slide in enumerate(prs.slides):
+        print(f"\n  --- 第{si+1}页 ---")
+        
+        shapes_info = []
+        for shape in slide.shapes:
+            top = shape.top
+            left = shape.left
+            w = shape.width
+            h = shape.height
+            bottom = top + h
+            
+            shape_type = "TABLE" if shape.has_table else "TEXT"
+            name = shape.name or "unnamed"
+            
+            shapes_info.append({
+                'name': name,
+                'type': shape_type,
+                'top': top,
+                'left': left,
+                'width': w,
+                'height': h,
+                'bottom': bottom,
+                'shape': shape
+            })
+            
+            print(f"    📐 [{shape_type}] {name}: "
+                  f"top={top} ({top/914400:.2f}\"), "
+                  f"left={left} ({left/914400:.2f}\"), "
+                  f"w={w} ({w/914400:.2f}\"), "
+                  f"h={h} ({h/914400:.2f}\"), "
+                  f"bottom={bottom} ({bottom/914400:.2f}\")")
+            
+            if shape.has_table:
+                table = shape.table
+                total_row_h = 0
+                for ri, row in enumerate(table.rows):
+                    rh = row.height
+                    total_row_h += rh
+                    txt = ""
+                    for ci, cell in enumerate(row.cells):
+                        ct = cell.text.strip()
+                        if ct:
+                            n_paras = len(cell.text_frame.paragraphs)
+                            txt += f"[Col{ci}:{n_paras}paras]"
+                    print(f"      行[{ri}]: h={rh} ({rh/914400:.2f}\"), {txt}")
+                print(f"      行高合计: {total_row_h} ({total_row_h/914400:.2f}\"), shape.h={h} ({h/914400:.2f}\")")
+        
+        # 检查形状之间是否有重叠
+        print(f"\n    🔍 重叠检测:")
+        for i in range(len(shapes_info)):
+            for j in range(i+1, len(shapes_info)):
+                s1 = shapes_info[i]
+                s2 = shapes_info[j]
+                
+                # 检查水平方向重叠
+                h_overlap = (s1['left'] < s2['left'] + s2['width'] and 
+                            s2['left'] < s1['left'] + s1['width'])
+                
+                # 检查垂直方向重叠
+                v_overlap = (s1['top'] < s2['top'] + s2['height'] and 
+                            s2['top'] < s1['top'] + s1['height'])
+                
+                if h_overlap and v_overlap:
+                    overlap_top = max(s1['top'], s2['top'])
+                    overlap_bottom = min(s1['bottom'], s2['bottom'])
+                    overlap_amount = overlap_bottom - overlap_top
+                    print(f"    ⚠️  重叠: 「{s1['name']}」与「{s2['name']}」"
+                          f" 重叠量={overlap_amount/914400:.2f}\"")
+
+
+def check_template_cell_structure():
+    """直接检查模板文件单元格结构（段落、间距、缩进）"""
+    from pptx import Presentation
+    from lxml import etree
+    
+    print("\n" + "=" * 80)
+    print("🔍 诊断 4: 模板XML结构分析")
+    print("=" * 80)
+    
+    template_path = SmartFillerService.get_template_path('0.12.0')
+    print(f"模板文件: {template_path}")
+    
+    prs = Presentation(template_path)
+    
+    # 找所有表格
+    for si, slide in enumerate(prs.slides):
+        for shape in slide.shapes:
+            if shape.has_table:
+                print(f"\n幻灯片[{si}] 表格: {shape.name}")
+                print(f"  位置: top={shape.top}, left={shape.left}")
+                print(f"  尺寸: w={shape.width}, h={shape.height}")
+                print(f"  行列: {len(shape.table.rows)}x{len(shape.table.columns)}")
+                
+                table = shape.table
+                for ri, row in enumerate(table.rows):
+                    print(f"\n  行[{ri}]: height={row.height}")
+                    for ci, cell in enumerate(row.cells):
+                        n_paras = len(cell.text_frame.paragraphs)
+                        print(f"    列[{ci}]: {n_paras}个段落")
+                        for pi, para in enumerate(cell.text_frame.paragraphs):
+                            txt = para.text[:100] if para.text else "(空)"
+                            pPr = para._p.find('{http://schemas.openxmlformats.org/drawingml/2006/main}pPr')
+                            details = {}
+                            if pPr is not None:
+                                for child in pPr:
+                                    tag = child.tag.split('}')[1] if '}' in child.tag else child.tag
+                                    details[tag] = child.attrib if child.attrib else child.text
+                            print(f"      段落[{pi}]: '{txt}'")
+                            if details:
+                                print(f"        pPr: {details}")
+                            print(f"        XML: {etree.tostring(para._p, pretty_print=True).decode()}")
+
+
+if __name__ == '__main__':
+    diagnose_template_row_paragraphs()
+    # check_template_cell_structure()  # 需要 get_template_path，模板 ID 不匹配 '0.12.0'
+    diagnose_estimate_vs_actual()

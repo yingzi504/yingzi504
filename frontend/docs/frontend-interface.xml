@@ -1,0 +1,587 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<frontend_interface project="HR简历助手" framework="Vue3 + TypeScript + Vite + ElementPlus + Pinia" date="2026-07-08">
+
+  <!-- ============================================================ -->
+  <!-- 说明：本文档完整描述了简历助手前端所有页面的结构和样式           -->
+  <!-- 包含：路由、4个页面、3个公共组件、设计Token                     -->
+  <!-- ============================================================ -->
+
+  <!-- ============================================================ -->
+  <!-- 页面路由配置                                                  -->
+  <!-- ============================================================ -->
+  <routes>
+    <route path="/upload" name="上传配置" view="UploadView.vue" />
+    <route path="/history" name="历史记录" view="HistoryView.vue" />
+    <route path="/templates" name="模板库" view="TemplatesView.vue" />
+    <route path="/jd-library" name="JD库" view="JDLibraryView.vue" />
+  </routes>
+
+  <!-- ============================================================ -->
+  <!-- 全局布局 MainLayout.vue                                      -->
+  <!-- ============================================================ -->
+  <component name="MainLayout">
+    <template>
+      <div class="main-layout">
+        <!-- 侧边栏：深色(195px)，logo + 导航 + 用户头像 -->
+        <aside class="sidebar">
+          <div class="logo">
+            <div class="logo-icon">HR</div>
+            <span class="logo-text">简历助手</span>
+          </div>
+          <nav>
+            <router-link to="/upload">上传配置</router-link>
+            <router-link to="/history">历史记录</router-link>
+            <router-link to="/templates">模板库</router-link>
+            <router-link to="/jd-library">JD库</router-link>
+          </nav>
+          <div class="user-avatar" />
+        </aside>
+        <!-- 主内容区：顶部标题栏 + router-view -->
+        <main>
+          <header>
+            <h1>{{ 页面标题 }}</h1>
+            <p>{{ 页面描述 }}</p>
+          </header>
+          <div class="content-area">
+            <router-view />
+          </div>
+        </main>
+      </div>
+    </template>
+    <styles>
+      <item name="sidebar">width:195px; 深色背景#1E1E2D; logo渐变色 #7C5CFC→#5E3FD7</item>
+      <item name="nav-item">默认色#8C8CA1; hover白底浅紫; active紫底白色加粗</item>
+      <item name="main-content">flex:1; 灰色背景#F0F2F5</item>
+      <item name="page-header">白色卡片; 标题15px加粗; 描述11px灰色</item>
+      <item name="content-area">flex:1; padding:8px 18px; overflow:hidden</item>
+    </styles>
+  </component>
+
+  <!-- ============================================================ -->
+  <!-- 页面一：上传配置 UploadView.vue                               -->
+  <!-- ============================================================ -->
+  <component name="UploadView" route="/upload">
+    <layout>
+      <!-- 三栏结构：左配置(340px) | 右结果(左信息170px + 右预览flex) -->
+      <!-- 底部：进度条 -->
+    </layout>
+    <template>
+      <div class="upload-page (flex-col, h:100%, gap:8px)">
+        <div class="upload-layout (flex, gap:16px, flex:1)">
+
+          <!-- ===== 左侧配置面板 (340px, 白色圆角卡片) ===== -->
+          <div class="config-panel">
+            <!-- 模式切换 -->
+            <div class="mode-tabs (紫色圆角, #F0EDFF)">
+              <button>生成标准化CV</button>
+              <button>生成标准化JD</button>
+            </div>
+            <!-- 文件上传组件 -->
+            <FileUpload />
+            <!-- PPT模板选择(仅CV模式) -->
+            <div v-if="cv模式">
+              <label>PPT 模板</label>
+              <button>📑 纵向</button>
+              <button>📄 横向</button>
+            </div>
+            <!-- 输出语言 -->
+            <div>
+              <label>输出语言</label>
+              <button>中文</button>
+              <button>English</button>
+              <button v-if="jd模式">CN+EN</button>
+            </div>
+            <!-- 部门字段(仅JD模式) -->
+            <div v-if="jd模式">
+              <label>部门</label>
+              <input placeholder="请输入目标部门..." />
+            </div>
+            <!-- 岗位描述 -->
+            <div>
+              <label>岗位描述 JD / 目标岗位方向 <span class="optional">可选</span></label>
+              <textarea rows="3" />
+            </div>
+            <!-- 开始处理 -->
+            <el-button type="primary" :disabled="!uploadedFile">
+              {{ isProcessing ? '处理中...' : '开始处理' }}
+            </el-button>
+          </div>
+
+          <!-- ===== 右侧结果面板 (flex:1, 白色卡片) ===== -->
+          <div class="result-panel (flex, gap:16px)">
+
+            <!-- 左栏：信息+按钮 (170px) -->
+            <div class="result-left (flex-col, gap:10px)">
+              <h3>CV信息 / JD信息</h3>
+
+              <!-- CV匹配度(常显) -->
+              <div v-if="cv模式" class="match-section">
+                <div class="match-card (浅紫背景, 圆角)">
+                  <div class="match-score (紫色方块)">{{ matchRate || '—' }}</div>
+                  <div>
+                    <p>JD 匹配度</p>
+                    <p>{{ matchLevel || '暂无匹配' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 信息字段 -->
+              <div class="info-grid (flex-col, gap:10px)">
+                <div>姓名（脱敏）: —</div>
+                <div>目标职位: —</div>
+                <div v-if="cv">工作年限: —</div>
+                <div v-if="cv">当前公司: —</div>
+                <div>语言: —</div>
+              </div>
+
+              <!-- 操作按钮(纵列, 左对齐, 文字居中) -->
+              <div class="action-buttons (flex-col, align:flex-start, gap:8px)">
+                <el-button type="primary">下载PPT / 下载WORD</el-button>
+                <el-button type="primary">下载PDF</el-button>
+                <el-button class="btn-edit (浅紫底)">编辑内容</el-button>
+                <el-button v-if="jd" class="btn-save">保存至JD库</el-button>
+                <el-button class="btn-retry (白底紫框)">重新处理</el-button>
+              </div>
+            </div>
+
+            <!-- 右栏：预览区 (flex:1) -->
+            <div class="result-right">
+              <div class="preview-area (紫色边框, 浅紫背景)">
+                <template v-if="已完成">
+                  <p>CV预览区 / JD预览区</p>
+                </template>
+                <div v-else class="empty-preview (居中)">
+                  <el-icon />
+                  <p>上传简历并点击"开始处理"后</p>
+                  <p>在此查看处理结果</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 底部进度条 ===== -->
+        <div class="bottom-bar">
+          <ProgressBar
+            :label="progressLabel"
+            :percent="taskProgress"
+            :status="taskStatus"
+            :steps="taskSteps"
+          />
+        </div>
+      </div>
+    </template>
+    <styles>
+      <item name="config-panel">width:340px; 白色bg; border-radius:10px; padding:16px; gap:14px; shadow</item>
+      <item name="mode-tabs">#F0EDFF背景; border-radius:20px; 按钮:#7C5CFC字/active白字紫底</item>
+      <item name="toggle-btn">flex:1; padding:7px 0; font-size:11px; #F5F6FA底→active#7C5CFC底白字</item>
+      <item name="submit-btn">width:100%; height:36px; font-size:13px; margin-top:auto</item>
+      <item name="result-left">width:170px; flex-shrink:0; flex-col; gap:10px</item>
+      <item name="match-score">38x38紫色方块(#7C5CFC); 18px白字加粗; border-radius:8px</item>
+      <item name="info-key">font-size:10px; color:#9CA3C4</item>
+      <item name="info-value">font-size:12px; font-weight:600; color:#1E1E2D</item>
+      <item name="action-buttons .el-button">width:80%; font-size:11px; justify-content:center; margin:0; display:inline-flex</item>
+      <item name="btn-edit">bg:#F0EDFF; color:#7C5CFC; border:none</item>
+      <item name="btn-retry">bg:transparent; border:1px solid #7C5CFC; color:#7C5CFC</item>
+      <item name="preview-area">flex:1; border:2px solid #7C5CFC; bg:#FAFAFF; border-radius:8px</item>
+    </styles>
+  </component>
+
+  <!-- ============================================================ -->
+  <!-- 页面二：模板库 TemplatesView.vue                              -->
+  <!-- ============================================================ -->
+  <component name="TemplatesView" route="/templates">
+    <layout>
+      <!-- 双栏：左面板(377px,无背景) + 右模板列表(flex:1,白卡片) -->
+      <!-- 左面板 = 统计卡片(白框外,纵列) + 上传白框 -->
+    </layout>
+    <template>
+      <div class="templates-page (h:100%, flex-col, gap:14px)">
+        <div class="templates-layout (flex, gap:16px, flex:1)">
+
+          <!-- 左侧面板(无背景) -->
+          <div class="left-panel (377px, flex-col, gap:12px)">
+            <!-- 统计卡片(白框外,纵列) -->
+            <div class="stats-grid (flex-col, gap:8px)">
+              <StatCard icon="📑" value="N" label="模板总数" />
+              <StatCard icon="📄" value="N" label="竖版模板" />
+              <StatCard icon="📃" value="N" label="横版模板" />
+            </div>
+            <!-- 上传白框 -->
+            <div class="upload-panel (white bg, round, shadow)">
+              <h3>上传新版本</h3>
+              <FileUpload accept=".pptx,.ppt" />
+              <el-button type="primary" class="btn-new-template (w:100%)">上传新模板</el-button>
+            </div>
+          </div>
+
+          <!-- 右侧模板列表(白卡片) -->
+          <div class="template-list-panel (flex:1, white, round, shadow, flex-col)">
+            <h3>模板列表</h3>
+            <div class="template-items (flex:1, overflow-y:auto, gap:10px)">
+              <div v-for="t in templates" class="template-card (white, border, round, flex)">
+                <div class="template-icon-area">
+                  <div class="template-icon (36x36, 浅紫, round)">{{ 图标 }}</div>
+                  <span class="status-badge (绿/红)">启用/停用</span>
+                </div>
+                <div class="template-info (flex:1)">
+                  <p class="name">{{ t.name }}</p>
+                  <p class="meta">v{{ version }} · 更新于 {{ date }}</p>
+                  <div class="tags">
+                    <span>竖版/横版</span>
+                    <span>{{ language }}</span>
+                  </div>
+                </div>
+                <div class="actions (flex, gap:6px)">
+                  <el-button>预览</el-button>
+                  <el-button>下载</el-button>
+                  <el-button type="primary">更新版本</el-button>
+                </div>
+              </div>
+              <el-empty v-if="无模板" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 上传新模板对话框 -->
+        <el-dialog title="上传新模板" width="420px">
+          <FileUpload accept=".pptx,.ppt" />
+          <template #footer>
+            <el-button>取消</el-button>
+            <el-button type="primary">确认上传</el-button>
+          </template>
+        </el-dialog>
+      </div>
+    </template>
+    <styles>
+      <item name="left-panel">width:377px; 无背景; flex-col; gap:12px</item>
+      <item name="stats-grid">flex-col; gap:8px</item>
+      <item name="upload-panel">white bg; border-radius:10px; padding:16px; shadow; flex-col</item>
+      <item name="btn-new-template">width:100%; margin-top:14px; font-size:11px; radius:6px</item>
+      <item name="template-card">white; border:1px #E0E3EA; radius:10px; padding:14px; flex; gap:12px</item>
+      <item name="template-icon">36x36; bg:#F0EDFF; radius:8px; flex-center; 20px</item>
+      <item name="status-badge">font-size:8px; 绿底(#ECFDF5/#22C55E) 或 红底(#FEF2F2/#EF4444)</item>
+      <item name="tpl-tag">bg:#F0EDFF; color:#7C5CFC; lang-tag:bg:#EFF6FF; color:#3B82F6</item>
+      <item name="template-actions .el-button">font-size:10px; height:26px; padding:0 12px; radius:5px</item>
+    </styles>
+  </component>
+
+  <!-- ============================================================ -->
+  <!-- 页面三：JD库 JDLibraryView.vue                                -->
+  <!-- ============================================================ -->
+  <component name="JDLibraryView" route="/jd-library">
+    <layout>
+      <!-- 双栏：左筛选(377px) + 右JD列表(flex:1,白卡片) -->
+      <!-- 左面板 = 统计卡片(2x2) + 搜索 + 筛选白框(含上传按钮) + 热门岗位 -->
+    </layout>
+    <template>
+      <div class="jd-page (h:100%)">
+        <div class="jd-layout (flex, gap:16px, h:100%)">
+
+          <!-- 左侧筛选面板(377px, 无背景) -->
+          <div class="jd-filter-panel (flex-col, gap:10px)">
+            <!-- 统计卡片(2x2 grid) -->
+            <div class="jd-stats-row (grid 2col, gap:8px)">
+              <StatCard icon="💼" value="N" label="JD 总数" />
+              <StatCard icon="🔧" value="N" label="汽车技术" />
+              <StatCard icon="📊" value="N" label="产品管理" />
+              <StatCard icon="💻" value="N" label="软件研发" />
+            </div>
+            <!-- 搜索 -->
+            <el-input placeholder="🔍 搜索岗位名称或关键词..." />
+            <!-- 筛选白框(含上传按钮) -->
+            <div class="filter-card (white, round, padding:14px, flex-col, gap:12px)">
+              <h4>筛选条件</h4>
+              <div class="filter-group">
+                <label>岗位类别</label>
+                <div class="filter-grid (2col)">
+                  <button v-for="c" :class="{active}">{{ c.label }}</button>
+                </div>
+              </div>
+              <div class="filter-group">
+                <label>JD 语言</label>
+                <div class="filter-grid (2col)">
+                  <button v-for="l" :class="{active}">{{ l.label }}</button>
+                </div>
+              </div>
+              <!-- 上传按钮(白框内) -->
+              <el-button type="primary" class="btn-new-jd (w:100%)">+ 上传新 JD</el-button>
+            </div>
+            <!-- 热门岗位 -->
+            <div class="hot-section (flex-col, gap:8px)">
+              <h4>热门岗位</h4>
+              <div class="hot-tags (flex-wrap, gap:6px)">
+                <span v-for="tag" class="hot-tag (浅紫底, 圆角)">{{ tag }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧JD列表(白卡片) -->
+          <div class="jd-list-panel (flex:1, white, round, flex-col, min-w:0)">
+            <div class="panel-header (flex, space-between)">
+              <h3>岗位描述列表</h3>
+              <el-button type="primary">+ 新增</el-button>
+            </div>
+            <div class="jd-items (flex:1, overflow-y:auto, gap:8px)">
+              <div v-for="jd" class="jd-card (white, round, padding)">
+                <p class="jd-position (12px加粗)">{{ jd.position }}</p>
+                <div class="jd-meta (flex, gap:6px)">
+                  <span class="jd-dept (浅紫标签)">{{ jd.department }}</span>
+                  <span class="jd-lang (浅蓝标签)">{{ jd.language }}</span>
+                  <span class="jd-status (绿/灰)">启用/停用</span>
+                </div>
+                <p class="jd-keywords">🔑 {{ tags }}</p>
+              </div>
+              <el-empty v-if="无记录" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 新增JD对话框 -->
+        <el-dialog title="新增 JD" width="500px">
+          <el-form label-position="top">
+            <el-form-item label="岗位名称" required><el-input /></el-form-item>
+            <el-form-item label="所属部门" required><el-select /></el-form-item>
+            <el-form-item label="岗位类别" required><el-select /></el-form-item>
+            <el-form-item label="JD 语言" required><el-radio-group /></el-form-item>
+            <el-form-item label="JD 内容" required><el-input type="textarea" rows="5" /></el-form-item>
+            <el-form-item label="关键词标签"><el-input placeholder="逗号分隔" /></el-form-item>
+          </el-form>
+          <template #footer>
+            <el-button>取消</el-button>
+            <el-button type="primary">确认创建</el-button>
+          </template>
+        </el-dialog>
+      </div>
+    </template>
+    <styles>
+      <item name="jd-filter-panel">width:377px; flex-col; gap:10px</item>
+      <item name="jd-stats-row">grid 2x2; gap:8px</item>
+      <item name="filter-card">white bg; radius:10px; padding:14px; flex-col; gap:12px</item>
+      <item name="filter-tag">padding:5px 0; #F1F3F8底; active:#7C5CFC底白字; text-align:center</item>
+      <item name="btn-new-jd">width:100%; font-size:11px; radius:6px</item>
+      <item name="hot-tag">font-size:10px; padding:4px 10px; radius:12px; #F0EDFF; hover:#7C5CFC白字</item>
+      <item name="jd-dept">bg:#F0EDFF; color:#7C5CFC; jd-lang:bg:#EFF6FF; color:#3B82F6</item>
+    </styles>
+  </component>
+
+  <!-- ============================================================ -->
+  <!-- 页面四：历史记录 HistoryView.vue                              -->
+  <!-- ============================================================ -->
+  <component name="HistoryView" route="/history">
+    <layout>
+      <!-- 双栏：左筛选(377px) + 右记录列表(flex:1,白卡片) -->
+      <!-- 左面板 = 统计卡片(纵列,白框外) + 搜索 + 筛选白框 -->
+    </layout>
+    <template>
+      <div class="history-page (h:100%)">
+        <div class="history-layout (flex, gap:16px, h:100%)">
+
+          <!-- 左侧筛选面板(377px, 无背景) -->
+          <div class="filter-panel (flex-col, gap:12px)">
+            <!-- 统计卡片(纵列) -->
+            <div class="stats-grid (flex-col, gap:8px)">
+              <StatCard icon="📊" value="N" label="总处理数" />
+              <StatCard icon="✅" value="N%" label="成功率" />
+              <StatCard icon="📅" value="N" label="本月处理" />
+            </div>
+            <!-- 搜索 -->
+            <el-input placeholder="🔍 搜索文件名或候选人..." />
+            <!-- 筛选白框 -->
+            <div class="filter-section (white, round, padding:14px, shadow, flex-col, gap:14px)">
+              <h4>筛选条件</h4>
+              <div class="filter-group">
+                <label>处理状态</label>
+                <div class="filter-tags">
+                  <button v-for="s" :class="{active}">{{ s.label }}</button>
+                </div>
+              </div>
+              <div class="filter-group">
+                <label>输出语言</label>
+                <div class="filter-tags two-col (grid 2col)">
+                  <button v-for="l" :class="{active}">{{ l.label }}</button>
+                </div>
+              </div>
+              <div class="filter-group">
+                <label>输出内容</label>
+                <div class="filter-tags">
+                  <button v-for="o" :class="{active}">{{ o.label }}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧记录列表(白卡片) -->
+          <div class="record-panel (flex:1, white, round, shadow, flex-col)">
+            <h3>处理记录</h3>
+            <div class="record-list (flex:1, overflow-y:auto, gap:8px)">
+              <div v-for="r in records" class="record-item (#F5F6FA底, round, flex, space-between)">
+                <div class="record-main (flex:1)">
+                  <p class="record-name (12px加粗)">{{ r.name }}_{{ r.position }}</p>
+                  <p class="record-meta (10px灰色)">{{ lang }} · {{ template }} · {{ duration }} · {{ date }}</p>
+                  <div class="record-footer">
+                    <span class="match-text (绿/黄)">匹配度 {{ rate }}%</span>
+                    <span class="status-badge (绿✅/红❌)">完成/失败</span>
+                  </div>
+                </div>
+                <div class="record-actions">
+                  <el-button v-if="成功" type="primary">下载</el-button>
+                  <el-button v-if="成功" class="btn-view">查看</el-button>
+                  <el-button v-if="失败" type="danger">重试</el-button>
+                </div>
+              </div>
+              <el-empty v-if="无记录" />
+            </div>
+            <!-- 分页 -->
+            <div v-if="total > pageSize" class="pagination-row (flex, space-between)">
+              <span>共 {{ total }} 条</span>
+              <el-pagination layout="prev, pager, next" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+    <styles>
+      <item name="filter-panel">width:377px; flex-col; gap:12px; 无背景</item>
+      <item name="filter-section">white bg; radius:10px; padding:14px; shadow; flex-col; gap:14px</item>
+      <item name="filter-tag">padding:5px 12px; #F5F6FA底; active:#7C5CFC白字; text-align:center</item>
+      <item name="record-item">bg:#F5F6FA; radius:8px; padding:12px 14px; flex; space-between</item>
+      <item name="match-high">color:#22C55E; match-mid:color:#F59E0B; match-none:color:#9CA3C4</item>
+      <item name="status-success">#ECFDF5/#22C55E; status-failed:#FEF2F2/#EF4444</item>
+    </styles>
+  </component>
+
+  <!-- ============================================================ -->
+  <!-- 公共组件：ProgressBar 进度条（含悬停步骤提示）                -->
+  <!-- ============================================================ -->
+  <component name="ProgressBar" props="label, percent, status?, steps?">
+    <template>
+      <el-tooltip placement="top-start" :show-after="200" :disabled="!steps">
+        <template #content>
+          <div class="steps-tooltip (min-w:180px)">
+            <div class="steps-title (12px加粗白色)">处理步骤</div>
+            <div v-for="step in steps" class="step-item (flex, gap:6px, 11px)"
+                 :class="step-done(绿) / step-running(紫) / step-error(红)">
+              <span class="step-name (mr:6px)">{{ step.name }}</span>
+              <span class="step-progress (10px)">{{ 100% 或 处理中 或 失败 或 跳过 或 0% }}</span>
+              <span v-if="step.duration" class="step-time (10px灰色)">1.2s</span>
+            </div>
+          </div>
+        </template>
+        <div class="progress-bar-wrapper (white, border, round, padding)">
+          <div class="progress-info (flex, justify:flex-start, gap:4px)">
+            <span class="progress-label (10px灰色)">CV生成进度：</span>
+            <span class="progress-percent (10px紫色加粗)">0%</span>
+          </div>
+          <div class="progress-track (h:4px, 灰色底, round)">
+            <div class="progress-fill (紫色, width:动态)" :class="is-error(红)/is-done(绿)" />
+          </div>
+        </div>
+      </el-tooltip>
+    </template>
+    <styles>
+      <item name="progress-bar-wrapper">white; border:1px #E8ECF3; radius:6px; padding:8px 12px</item>
+      <item name="progress-info">flex; justify-content:flex-start; gap:4px</item>
+      <item name="progress-percent">font-size:10px; font-weight:600; color:#7C5CFC</item>
+      <item name="progress-track">height:4px; bg:#E8ECF3; radius:2px</item>
+      <item name="progress-fill">#7C5CFC; error:#EF4444; done:#22C55E</item>
+      <item name="step-done">color:#22C55E</item>
+      <item name="step-running">color:#7C5CFC</item>
+      <item name="step-error">color:#EF4444</item>
+    </styles>
+  </component>
+
+  <!-- ============================================================ -->
+  <!-- 公共组件：FileUpload 文件拖拽上传                             -->
+  <!-- ============================================================ -->
+  <component name="FileUpload" props="title?, hint?, btnText?, accept?, isUploading?" emits="select, remove">
+    <template>
+      <div class="file-upload (虚线框, 居中, 过渡动画)"
+           @dragover @dragleave @drop>
+        <!-- 未选择文件 -->
+        <div v-if="!fileName" class="upload-placeholder (flex-col, 居中)">
+          <div class="upload-icon (32px)">📎</div>
+          <p class="upload-title (13px加粗)">{{ title }}</p>
+          <p class="upload-hint">{{ hint }}</p>
+          <el-button type="primary" :loading="isUploading">{{ btnText }}</el-button>
+          <p class="upload-or">— 或点击按钮选择文件 —</p>
+        </div>
+        <!-- 已选择文件 -->
+        <div v-else class="upload-file-info (flex)">
+          <el-icon />
+          <div class="file-detail">
+            <p class="file-name">{{ fileName }}</p>
+            <p class="file-size">{{ fileSize }}</p>
+          </div>
+          <el-button type="danger" link @click="removeFile">✕</el-button>
+        </div>
+        <input ref="fileInput" type="file" :accept="accept" hidden @change="handleSelect" />
+      </div>
+    </template>
+    <styles>
+      <item name="file-upload">border:2px dashed #E8ECF3; radius:8px; padding:20px; min-h:150px; bg:#F5F6FA; flex-center; cursor:pointer</item>
+      <item name="is-dragover">border-color:#7C5CFC; bg:#F0EDFF</item>
+      <item name="has-file">border-style:solid; border-color:#7C5CFC; bg:#F0EDFF</item>
+    </styles>
+  </component>
+
+  <!-- ============================================================ -->
+  <!-- 公共组件：StatCard 统计卡片                                   -->
+  <!-- ============================================================ -->
+  <component name="StatCard" props="icon, iconBg?, value, label">
+    <template>
+      <div class="stat-card (#F8F9FC底, round, flex, gap:10px, padding:10px 14px)">
+        <div class="stat-icon (28x28, round, bg:#F0EDFF, 居中, 14px)">{{ icon }}</div>
+        <div class="stat-content (flex:1)">
+          <p class="stat-value (15px加粗, #1E1E2D)">{{ value }}</p>
+          <p class="stat-label (10px, #9CA3C4)">{{ label }}</p>
+        </div>
+      </div>
+    </template>
+  </component>
+
+  <!-- ============================================================ -->
+  <!-- 全局设计系统 Token                                           -->
+  <!-- ============================================================ -->
+  <design_tokens>
+    <colors>
+      <primary>#7C5CFC (主紫色)</primary>
+      <primary_light>#F0EDFF (浅紫)</primary_light>
+      <success>#22C55E (绿色)</success>
+      <error>#EF4444 (红色)</error>
+      <warning>#F59E0B (黄色)</warning>
+      <text_primary>#1E1E2D (主文字)</text_primary>
+      <text_secondary>#5A5A7A (次文字)</text_secondary>
+      <text_muted>#9CA3C4 (弱文字)</text_muted>
+      <bg_sidebar>#1E1E2D (侧边栏)</bg_sidebar>
+      <bg_page>#F0F2F5 (页面底色)</bg_page>
+      <bg_card>#FFFFFF (卡片)</bg_card>
+      <bg_tag>#F5F6FA (标签底色)</bg_tag>
+      <border>#E8ECF3 (边框)</border>
+    </colors>
+    <font_sizes>
+      <page_title>15px</page_title>
+      <section_title>13px</section_title>
+      <body>12px</body>
+      <small>11px</small>
+      <caption>10px</caption>
+      <badge>8-9px</badge>
+    </font_sizes>
+    <spacing>
+      <panel_gap>16px</panel_gap>
+      <section_gap>10-14px</section_gap>
+      <item_gap>6-8px</item_gap>
+    </spacing>
+    <border_radius>
+      <card>10px</card>
+      <button>6px</button>
+      <tag>4-8px</tag>
+      <pill>12-20px</pill>
+    </border_radius>
+    <panel_widths>
+      <config>340px (上传配置) / 377px (其他页面)</config>
+      <info>170px (CV信息栏)</info>
+    </panel_widths>
+  </design_tokens>
+
+</frontend_interface>

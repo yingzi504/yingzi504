@@ -1,0 +1,65 @@
+{
+  "resume_data": {
+    "name": "张三",
+    "anonymized_name": "张先生",
+    "anonymized_name_cn": "张先生",
+    "phone": "138****5678",
+    "email": "zhangsan@example.com",
+    "location": "北京",
+    "age": 32,
+    "gender": "male",
+    "position": "高级前端工程师",
+    "position_en": "Senior Frontend Engineer",
+    "total_exp": "8年",
+    "summary": "8年前端开发经验，精通 Vue.js、React 等主流框架，熟悉 TypeScript、Webpack、Vite 等工具链。具有大型企业级项目架构设计经验，善于团队协作与技术分享。曾主导多个从 0 到 1 的项目落地。",
+    "tech_skills": "Vue.js, React, TypeScript, JavaScript, HTML5, CSS3, Webpack, Vite, Node.js, Python, Git, Docker",
+    "lang_skills": "英语(CET-6), 中文(母语)",
+    "education": [
+      {
+        "school": "北京理工大学",
+        "period": "2012.09 - 2016.07",
+        "degree": "本科",
+        "major": "计算机科学与技术"
+      }
+    ],
+    "work": [
+      {
+        "company": "ABC科技有限公司",
+        "period": "2021.03 - 至今",
+        "role": "高级前端工程师",
+        "tasks": "负责公司核心业务系统前端架构设计与开发，基于 Vue 3 + TypeScript 构建可复用组件库，提升团队开发效率 40%；\n主导微前端架构落地，实现多团队协作开发模式，支持日均百万级 PV 的业务系统稳定运行；\n优化首屏加载性能，LCP 从 4.2s 降至 1.8s，Core Web Vitals 全面达标；\n搭建前端 CI/CD 流水线，实现自动化测试与部署，代码覆盖率提升至 85%。"
+      },
+      {
+        "company": "XYZ互联网集团",
+        "period": "2018.04 - 2021.02",
+        "role": "前端工程师",
+        "tasks": "参与公司主要产品线 Web 端开发，使用 React + Redux 技术栈；\n实现复杂数据可视化大屏，基于 ECharts 高性能渲染万级数据点；\n负责前端性能监控体系搭建，使用 Lighthouse CI 进行持续性能追踪；\n编写技术文档并组织内部技术分享，指导 3 名初级工程师成长。"
+      },
+      {
+        "company": "DEF信息技术公司",
+        "period": "2016.07 - 2018.03",
+        "role": "初级前端工程师",
+        "tasks": "负责公司官网及后台管理系统的前端开发；\n使用 jQuery + Bootstrap 完成响应式页面开发，兼容主流浏览器；\n参与前端工程化建设，引入 Webpack 模块打包与热更新机制。"
+      }
+    ],
+    "project": [
+      {
+        "company": "ABC科技有限公司",
+        "period": "2022.06 - 2023.12",
+        "name": "智能数据中台",
+        "role": "前端技术负责人",
+        "tasks": "从 0 到 1 搭建企业级数据中台前端架构，覆盖数据采集、清洗、分析、可视化全链路；\n基于 Vue 3 + Element Plus 开发 50+ 业务组件，封装通用数据表格、表单、图表组件库；\n设计可配置化仪表盘引擎，支持用户拖拽自定义布局，降低运营人员使用门槛。"
+      },
+      {
+        "company": "XYZ互联网集团",
+        "period": "2019.03 - 2020.08",
+        "name": "实时流量监控平台",
+        "role": "核心开发者",
+        "tasks": "基于 React + D3.js 开发实时流量监控大屏，支持 WebSocket 实时数据推送；\n实现地理分布热力图、流量趋势折线图等多维度可视化分析功能；\n单页面同时渲染 5000+ DOM 节点时保持 60fps 流畅交互。"
+      }
+    ],
+    "language": "CN"
+  },
+  "template_type": "vertical",
+  "generate_pdf": false
+}

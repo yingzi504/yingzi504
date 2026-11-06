@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "terms": [
+    {
+      "cn": "人工智能",
+      "en": "Artificial Intelligence",
+      "category": "技术",
+      "description": ""
+    },
+    {
+      "cn": "机器学习",
+      "en": "Machine Learning",
+      "category": "技术",
+      "description": ""
+    }
+  ]
+}

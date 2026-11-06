@@ -1,0 +1,94 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.vite/
+.history/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Conda Environment (not committed)
+# Note: conda environments are typically stored outside the project
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Local debug runtime files
+logs/
+backend/python
+
+# Root-level local generated directories (not committed)
+.npm-cache/
+.playwright-cli/
+output/
+tmp/
+uploads/
+
+# Frontend
+node_modules/
+dist/
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+# Keep .env.example as template
+!.env.example
+
+# PPT templates (keep placeholders)
+backend/templates/*
+!backend/templates/.gitkeep
+
+# Output files
+backend/output/*
+!backend/output/.gitkeep
+
+# Logs
+*.log
+*.png
+*.docx
+*.pdf
+*.drawio
+
+# Deployment local state
+.deploy-data/
+deploy/deploy.env
+
+# Test result directories (local QA artifacts)
+docs/Testing 0812/
+docs/Testing 0813/
