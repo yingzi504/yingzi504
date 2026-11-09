@@ -23,22 +23,45 @@ class ExtractorService:
         "需求", "管理", "职位", "个人", "工作", "项目",
     }
 
-    _SKILL_TERMS = (
+    # Deterministic recovery for common named software/tools. These entries
+    # are also the canonical labels used when the model returns a verbose
+    # phrase such as "CANoe software". Keep languages, protocols, methods and
+    # hardware out of this catalog.
+    _SOFTWARE_TERMS = (
         (r"\bCANoe\b", "CANoe"),
-        (r"\bCAPL\b", "CAPL"),
-        (r"\bPython\b", "Python"),
-        (r"\bLinux\b", "Linux"),
+        (r"\bCANalyzer\b", "CANalyzer"),
         (r"\bADB\b", "ADB"),
+        (r"\bINCA\b", "INCA"),
+        (r"\bMDA\b", "MDA"),
         (r"\bMATLAB\b", "MATLAB"),
         (r"\bSimulink\b", "Simulink"),
-        (r"\bECU\b", "ECU"),
-        (r"\bCAN\b", "CAN"),
-        (r"\bLIN\b", "LIN"),
-        (r"\bEthernet\b", "Ethernet"),
-        (r"\bUDS\b", "UDS"),
-        (r"\bADAS\b", "ADAS"),
-        (r"(?i)\btest bench\b", "Test bench"),
+        (r"\bMicrosoft\s+Office\b|\bMS\s+Office\b", "Microsoft Office"),
+        (r"\bExcel\b", "Excel"),
+        (r"\bPowerPoint\b", "PowerPoint"),
+        (r"\bVisio\b", "Visio"),
+        (r"\bJira\b", "Jira"),
+        (r"\bConfluence\b", "Confluence"),
+        (r"\bAxure\b", "Axure"),
+        (r"\bXmind\b", "XMind"),
+        (r"\bGit\b", "Git"),
+        (r"\bDocker\b", "Docker"),
+        (r"\bKubernetes\b", "Kubernetes"),
     )
+
+    _NON_SOFTWARE_SKILLS = {
+        # Programming and query languages
+        "c", "c++", "c#", "go", "java", "javascript", "kotlin", "matlab language",
+        "python", "r", "rust", "sql", "swift", "typescript", "vba",
+        # Frameworks/libraries/runtimes
+        "angular", "django", "flask", "node.js", "nodejs", "numpy", "pandas",
+        "pytorch", "react", "scikit-learn", "spring", "tensorflow", "vue", "vue.js",
+        # Protocols, hardware/domains and methods
+        "adas", "agile", "can", "capl", "ecu", "ethernet", "hil", "http", "lin",
+        "mqtt", "scrum", "test bench", "uds",
+        # Operating systems and cloud providers are outside the strict
+        # software/tool scope requested for the CV footer.
+        "android", "aws", "azure", "gcp", "linux", "office", "windows",
+    }
 
     @staticmethod
     def _filename_name(original_filename: str) -> str:
@@ -139,28 +162,59 @@ class ExtractorService:
                 project["period"] = ExtractorService._normalize_period(matches[0])
 
     @staticmethod
+    def _skill_items(value: Any) -> list[str]:
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        return [
+            item.strip()
+            for item in re.split(r"[;；,，\n]+", str(value or ""))
+            if item.strip()
+        ]
+
+    @staticmethod
+    def _has_source_evidence(candidate: str, raw_text: str) -> bool:
+        """Require a model candidate to occur verbatim in the parsed source."""
+        normalized_candidate = re.sub(r"\s+", " ", candidate).strip()
+        normalized_source = re.sub(r"\s+", " ", raw_text or "")
+        if not normalized_candidate or not normalized_source:
+            return False
+        return normalized_candidate.casefold() in normalized_source.casefold()
+
+    @staticmethod
     def _infer_skills(extracted_data: dict, raw_text: str) -> None:
-        if extracted_data.get("tech_skills"):
-            return
-        evidence = " ".join([
-            raw_text or "",
-            *(
-                str(item.get("tasks") or "")
-                for item in extracted_data.get("work", [])
-                if isinstance(item, dict)
-            ),
-            *(
-                str(item.get("tasks") or "")
-                for item in extracted_data.get("project", [])
-                if isinstance(item, dict)
-            ),
-        ])
-        found = []
-        for pattern, label in ExtractorService._SKILL_TERMS:
-            if re.search(pattern, evidence) and label not in found:
+        """Keep only source-backed named software/tools and recover known ones."""
+        found: list[str] = []
+        seen: set[str] = set()
+
+        def add(label: str) -> None:
+            key = label.casefold()
+            if key not in seen:
+                seen.add(key)
                 found.append(label)
-        if found:
-            extracted_data["tech_skills"] = ", ".join(found[:18])
+
+        for candidate in ExtractorService._skill_items(
+            extracted_data.get("tech_skills")
+        ):
+            if candidate.casefold() in ExtractorService._NON_SOFTWARE_SKILLS:
+                continue
+            canonical = next((
+                label
+                for pattern, label in ExtractorService._SOFTWARE_TERMS
+                if re.search(pattern, candidate, flags=re.IGNORECASE)
+                and re.search(pattern, raw_text or "", flags=re.IGNORECASE)
+            ), None)
+            if canonical:
+                add(canonical)
+            elif ExtractorService._has_source_evidence(candidate, raw_text):
+                add(candidate)
+
+        # The catalog is deterministic recovery, not evidence substitution:
+        # every item is still matched against the original parsed text.
+        for pattern, label in ExtractorService._SOFTWARE_TERMS:
+            if re.search(pattern, raw_text or "", flags=re.IGNORECASE):
+                add(label)
+
+        extracted_data["tech_skills"] = "; ".join(found) if found else None
 
     @staticmethod
     def _task_items(text: str) -> list[str]:

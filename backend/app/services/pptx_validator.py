@@ -226,6 +226,19 @@ class PPTXValidator:
                         )
                     }
                 slide_root = etree.fromstring(package.read(slide_name))
+                office_tags = list(slide_root.iter(
+                    "{http://schemas.openxmlformats.org/presentationml/2006/main}tags"
+                ))
+                if office_tags:
+                    self.issues.append(ValidationIssue(
+                        severity="error",
+                        category="package_integrity",
+                        slide_num=slide_num,
+                        description=(
+                            "幻灯片包含可能导致跨版本 Repair 的 Office 标签元数据"
+                        ),
+                        suggestion="保存前删除 p:tags，但保留其 p:nvPr 父节点",
+                    ))
                 referenced_ids = {
                     value
                     for node in slide_root.iter()

@@ -1,13 +1,14 @@
-"""
-PPTX → PDF 转换服务
-使用 LibreOffice headless 模式进行转换 (跨平台, 保真度高)
-"""
+"""PPTX → PDF conversion with LibreOffice and Windows PowerPoint fallback."""
 import os
+import logging
 import subprocess
 import shutil
 import tempfile
 from pathlib import Path
 from typing import Optional
+
+
+logger = logging.getLogger(__name__)
 
 
 class PdfConverterService:
@@ -36,6 +37,85 @@ class PdfConverterService:
         return None
 
     @staticmethod
+    def has_powerpoint() -> bool:
+        """Return whether Microsoft PowerPoint COM is registered on Windows."""
+        if os.name != "nt":
+            return False
+        try:
+            import winreg
+            with winreg.OpenKey(
+                winreg.HKEY_CLASSES_ROOT, r"PowerPoint.Application\CLSID"
+            ):
+                return True
+        except OSError:
+            return False
+
+    @staticmethod
+    def _convert_with_powerpoint(pptx_path: str, expected_pdf: str) -> str:
+        """Export through PowerPoint COM using the Windows PowerShell host."""
+        work_dir = tempfile.mkdtemp(prefix="iav_ppt_pdf_")
+        short_pptx = os.path.join(work_dir, "resume.pptx")
+        short_pdf = os.path.join(work_dir, "resume.pdf")
+        shutil.copy2(pptx_path, short_pptx)
+        try:
+            powershell = shutil.which("powershell.exe") or shutil.which("powershell")
+            if not powershell:
+                raise RuntimeError("未找到 Windows PowerShell")
+            script = r"""
+$source = $env:IAV_PPTX_SOURCE
+$destination = $env:IAV_PDF_DESTINATION
+$application = $null
+$presentation = $null
+try {
+    $application = New-Object -ComObject PowerPoint.Application
+    $presentation = $application.Presentations.Open($source, $true, $false, $false)
+    # ppSaveAsPDF = 32. This is compatible with PowerPoint 2007.
+    $presentation.SaveAs($destination, 32)
+} finally {
+    if ($presentation) {
+        try { $presentation.Close() } catch {}
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($presentation)
+    }
+    if ($application) {
+        try { $application.Quit() } catch {}
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($application)
+    }
+}
+"""
+            result = subprocess.run(
+                [
+                    powershell, "-NoProfile", "-NonInteractive",
+                    "-ExecutionPolicy", "Bypass", "-Command", script,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env={
+                    **os.environ,
+                    "IAV_PPTX_SOURCE": os.path.abspath(short_pptx),
+                    "IAV_PDF_DESTINATION": os.path.abspath(short_pdf),
+                },
+            )
+            if result.returncode != 0:
+                detail = (result.stderr or result.stdout).strip()
+                raise RuntimeError(
+                    f"PowerPoint 进程返回 code={result.returncode}: {detail}"
+                )
+            if not os.path.isfile(short_pdf) or os.path.getsize(short_pdf) <= 0:
+                detail = (result.stderr or result.stdout).strip()
+                raise RuntimeError(
+                    f"PowerPoint 未生成有效的 PDF 文件: {detail or '无诊断输出'}"
+                )
+            shutil.copy2(short_pdf, expected_pdf)
+            return expected_pdf
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("PowerPoint PDF 转换超时（超过120秒）") from exc
+        except Exception as exc:
+            raise RuntimeError(f"PowerPoint PDF 转换失败: {exc}") from exc
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
+    @staticmethod
     def convert_pptx_to_pdf(pptx_path: str, output_dir: Optional[str] = None) -> str:
         """
         将 PPTX 文件转换为 PDF
@@ -55,11 +135,9 @@ class PdfConverterService:
             raise FileNotFoundError(f"PPTX 文件不存在: {pptx_path}")
 
         soffice = PdfConverterService.find_libreoffice()
-        if not soffice:
+        if not soffice and not PdfConverterService.has_powerpoint():
             raise FileNotFoundError(
-                "未找到 LibreOffice。请安装 LibreOffice 以支持 PDF 转换。\n"
-                "下载地址: https://www.libreoffice.org/download/\n"
-                "安装后确保 soffice.exe 在 PATH 中或在默认安装路径。"
+                "未找到可用的 PDF 转换器。请安装 LibreOffice，或在 Windows 上安装 Microsoft PowerPoint。"
             )
 
         # 确定输出目录
@@ -70,6 +148,15 @@ class PdfConverterService:
         # 预期输出的 PDF 文件名
         base_name = os.path.splitext(os.path.basename(pptx_path))[0]
         expected_pdf = os.path.join(output_dir, f"{base_name}.pdf")
+        if not soffice:
+            logger.info(
+                "Converting PPTX to PDF with Microsoft PowerPoint: %s",
+                os.path.basename(pptx_path),
+            )
+            return PdfConverterService._convert_with_powerpoint(
+                pptx_path, expected_pdf
+            )
+
         # Use a short temporary basename so long anonymized/job-position names
         # do not prevent LibreOffice from producing the PDF.
         work_dir = tempfile.mkdtemp(prefix="iav_pdf_")
@@ -78,8 +165,10 @@ class PdfConverterService:
         profile_dir = os.path.join(work_dir, "lo_profile")
         shutil.copy2(pptx_path, short_pptx)
 
-        print(f"🔄 正在转换 PPTX → PDF: {os.path.basename(pptx_path)}")
-        print(f"   LibreOffice: {soffice}")
+        logger.info(
+            "Converting PPTX to PDF with LibreOffice: %s",
+            os.path.basename(pptx_path),
+        )
 
         try:
             result = subprocess.run(
@@ -107,7 +196,10 @@ class PdfConverterService:
             shutil.copy2(short_pdf, expected_pdf)
 
             pdf_size = os.path.getsize(expected_pdf)
-            print(f"   ✅ PDF 生成成功: {os.path.basename(expected_pdf)} ({pdf_size} bytes)")
+            logger.info(
+                "PDF generated successfully: %s (%d bytes)",
+                os.path.basename(expected_pdf), pdf_size,
+            )
             return expected_pdf
 
         except subprocess.TimeoutExpired:
@@ -120,7 +212,10 @@ class PdfConverterService:
     @staticmethod
     def is_available() -> bool:
         """检查 PDF 转换是否可用"""
-        return PdfConverterService.find_libreoffice() is not None
+        return (
+            PdfConverterService.find_libreoffice() is not None
+            or PdfConverterService.has_powerpoint()
+        )
 
     @staticmethod
     def ensure_pdf_for_pptx(pptx_path: str, output_dir: Optional[str] = None) -> str:

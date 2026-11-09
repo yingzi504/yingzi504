@@ -39,6 +39,7 @@
 | CV-EXP-04 | 用动词开头、修正语法，单条以1—2行为写作目标；模型不添加序号、项目符号、前缀或说明，由排版统一处理 | 模型指令；1—2行不是实际渲染硬上限 |
 | CV-SKILL-01 | 检查全篇工作、项目、自评及技能章节；归纳明示使用的技术、方法、协议、工具，不只列工具；去重，不因语言或长度删减技能范围 | 模型指令；`cv_extraction.txt` |
 | CV-SKILL-02 | 技能以分号组织；语言技能保留语言名称及水平 | 模型指令及模型字段兼容处理 |
+| CV-SKILL-03 | CV底部技术技能仅保留原文明确出现的软件、应用程序、工程工具或具名平台名称；排除编程语言、框架、库、协议、方法、硬件、技术领域、泛化能力及模型推断项。模型负责发现候选项，代码逐项核对原文证据、过滤常见非软件类别并用受控软件词表补漏；本规则取代CV-SKILL-01对`tech_skills`的宽口径要求，语言技能仍按CV-SKILL-02处理 | 模型指令＋确定性证据校验；`prompts/cv_extraction.txt`、`extractor_service.py`；已接入，开放名称的类别判断仍有模型边界 |
 | CV-TIME-01 | 原文有数字总工龄时优先保留，仅规范单位；缺失时按工作月份并集计算，重叠不重复，无有效时间线则留空 | 代码执行；`TranslatorService.normalize_total_experience` |
 | CV-TIME-02 | 日期规范为年月区间，至今按中文／Present输出；当前仅年份区间会补为起年01月至止年12月，属于既有实现假设 | 代码执行；`TranslatorService.normalize_period` |
 
@@ -81,10 +82,10 @@
 | CV-LAYOUT-03 | 模块间距0.5cm；普通页纵向3.74—26.47cm，末页预留页脚时3.74—23.54cm；按换行留安全余量 | 代码执行；`CV_RULES.module_spacing_cm`、`PageConstraints`；模板适配仍需视觉验证 |
 | CV-LAYOUT-04 | 清理空技能标题、空段及尾部空页；公司块只在末页，空间不足省略，不为公司块单独增页 | 代码执行 |
 | CV-LAYOUT-05 | 生成后记录PPT校验结果；不是所有校验问题都会阻止输出 | 代码执行；`pptx_validator.py`、pipeline |
-| CV-OUT-01 | 主输出可编辑PPTX；PDF依赖转换环境可用，不能无条件保证 | 代码执行；smart filler／转换服务 |
+| CV-OUT-01 | 主输出可编辑PPTX；PDF优先使用LibreOffice转换，Windows未安装LibreOffice时回退到本机Microsoft PowerPoint原生导出；两者均不可用时返回明确环境错误 | 代码执行；smart filler／`pdf_converter.py` |
 | CV-OUT-02 | 下载文件名为`IAV_称谓姓氏_岗位_Resume_语言_日期.pptx`，PDF同名；删除随机字符尾缀，保留日期。内部存储使用唯一标识，归档按任务隔离以避免覆盖 | 已接入；`cv_rules.cv_download_filename`、smart filler、pipeline、下载及归档接口 |
-| CV-OUT-03 | 分页复制形状时必须同步 OOXML 关系；输出不得含悬空 `r:id/r:embed/r:link`。保存前仅可清理缺失关系的不可见 Office 标签，图片、超链接等可见内容关系缺失必须失败，禁止归档需 PowerPoint Repair 的文件 | 代码执行；`smart_filler_service.py` 关系感知复制与标签清理、`pptx_validator.py` 包完整性校验、`pipeline_service.py` 阻断归档 |
-| CV-OUT-04 | CV 的 PDF 下载必须可从已归档 PPTX 按需生成并持久化；历史只归档 PPTX 时仍展示 PDF 操作，转换环境不可用时返回明确原因 | 代码执行；`pdf_converter.py`、`access_service.py`、`process.py`、`pipeline_service.py`、`CVLibraryView.vue` |
+| CV-OUT-03 | 分页复制形状时必须同步 OOXML 关系；输出不得含悬空 `r:id/r:embed/r:link`。保存前删除不承载可见内容的 Office `p:tags` 元数据，但必须保留形状必需的 `p:nvPr`；图片、超链接等可见内容关系缺失必须失败。PPTX 下载禁止缓存旧副本，禁止归档需 PowerPoint Repair 的文件 | 代码执行；`smart_filler_service.py` 关系感知复制与标签清理、`pptx_validator.py` 包完整性校验、下载接口 `Cache-Control: no-store`、`pipeline_service.py` 阻断归档 |
+| CV-OUT-04 | CV 的 PDF 下载必须可从已归档 PPTX 按需生成并持久化；历史只归档 PPTX 时仍展示 PDF 操作，转换环境不可用时返回明确原因。Windows PowerPoint回退通过独立PowerShell进程和短临时路径导出，兼容PowerPoint 2007 | 代码执行；`pdf_converter.py`、`access_service.py`、`process.py`、`pipeline_service.py`、`CVLibraryView.vue` |
 
 ## 后续新增需求怎么处理
 
@@ -158,6 +159,25 @@
 - 修复：复制形状时同步标签、图片和超链接关系；保存前清理仅限不可见且已悬空的 Office 标签；验证器新增确定性包关系检查，流水线对包错误直接失败，不再归档。
 - 历史数据：扫描 19 份 CV 归档，目标文件修复后另有 18 份受影响；已逐份备份为 `.broken-backup` 并修复。每份修复均要求页数及全部文本／表格内容一致且包错误归零。
 - 验证：`test_pptx_relationship_integrity.py` 覆盖损坏检测、关系感知复制、无内容丢失清理及空关系属性兼容；相关 CV 输出、文件名和分页回归共 29 项通过。目标吴先生文件 2 页、8 个文本对象修复前后一致，独立包检查从 3 个错误降为 0。因本机 PowerPoint 自动化与渲染依赖不可用，未完成原生 PowerPoint 打开和截图验证。
+
+### 2026-11-06 PowerPoint Repair 兼容性补充修复
+
+- 根因补充：公司信息表格仍有一条原始 XML 深拷贝路径，没有同步关系；旧清理逻辑只处理悬空标签且可能错误删除标签父级。即使基础关系检查通过，跨页复用的 Office `p:tags` 元数据仍会在部分 PowerPoint 版本中触发 Repair。固定下载 URL 也可能让浏览器复用修复前文件。
+- 修复：公司表格改用关系感知复制；保存前删除全部不可见 `p:tags` 及其未使用关系，只删除标签本身并保留必需 `p:nvPr`；CV 下载响应增加 `Cache-Control: no-store`。
+- 历史数据：32 份归档全部移除 Office 标签，并为每份保留 `.compat-backup`。每份替换均要求页数、全部文本及表格内容一致、关系错误为零。修复后复扫：32 份标签为零、缺失 `p:nvPr` 为零、包关系错误为零。
+- 验证：PPTX 关系、实际 CV 中英文／横竖版、文件名与分页回归共 31 项通过；两个吴先生归档均通过本机 PowerPoint COM 原生打开（各 2 页），未弹出 Repair。仍建议同事删除旧下载文件并重新下载验证其 PowerPoint 版本。
+
+### 2026-11-06 CV底部软件技能收窄
+
+- `CV-SKILL-03` 已接入：抽取提示词仅要求软件、应用程序、工程工具或具名平台；抽取服务逐项验证模型候选名称在原始解析文本中出现，删除无证据项及受控排除表中的语言、框架、协议、方法、硬件等，并用受控软件词表从原文补漏。
+- 确定性边界：原文证据核验、受控排除表、受控软件词表及去重由代码执行；未收入词表的新名称是否属于软件仍依赖模型分类，不能把提示词描述为绝对保证。超过12000字符的模型输入仍可能漏掉开放名称，但受控词表补漏扫描完整解析文本。
+- 验证：精确回归集14项通过，覆盖CANoe／ADB回退、Python／Linux／CAN／Agile排除、Jira保留、虚构候选删除、CANoe名称标准化、Microsoft Office补漏、普通`office`词义消歧、LLM失败回退、提示词加载、逐项翻译与大小写去重。扩展相关测试共31项通过、1项既有翻译断言失败；失败项要求英文公司名在中文输出中保持不译，与当前`CV-TR-02/03`要求机构名本地化冲突，与本次技能改动无关。
+
+### 2026-11-06 CV PDF PowerPoint回退修复
+
+- 根因：本机未安装LibreOffice，原`PdfConverterService`只有LibreOffice路径，因此新生成和历史归档的PDF按需下载均失败。
+- 修复：保留LibreOffice首选路径；Windows检测到Microsoft PowerPoint时，通过独立PowerShell COM进程和短临时文件名执行`SaveAs(..., 32)`原生PDF导出，兼容本机PowerPoint 12.0。转换日志移除emoji，避免重定向控制台使用`cp1252`时在转换前触发编码异常。
+- 验证：`test_pdf_converter.py`覆盖PowerPoint可用性、回退路由和无转换器错误；相关转换、CV文件名、归档与下载权限测试通过。真实归档PPTX经Python服务导出PDF成功，文件150131字节且文件头为`%PDF-`。未安装额外运行时依赖。
 
 ### 2026-11-05 CV PDF 下载修复
 

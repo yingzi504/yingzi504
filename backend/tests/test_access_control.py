@@ -107,6 +107,7 @@ def test_ownership_task_archive_download_and_audit(context, monkeypatch):
     source.write_bytes(b'later output')
     assert alice.get(f'/api/v1/process/{tid}/download?format=pptx').content == b'original output'
     assert alice.get(f'/api/v1/records/{tid}/download?format=pptx').content == b'original output'
+    assert alice.get(f'/api/v1/records/{tid}/download?format=pptx').headers['cache-control'] == 'no-store'
     assert admin.get(f'/api/v1/records/{tid}/download?format=pptx').content == b'original output'
     assert bob.get(f'/api/v1/records/{tid}/download?format=pptx').status_code == 404
     assert bob.get(f'/api/v1/records/{tid}').status_code == 404
@@ -129,6 +130,40 @@ def test_ownership_task_archive_download_and_audit(context, monkeypatch):
     assert 'Changed-password' not in serialized and 'resume_session' not in serialized
     # Metadata and archived files remain available independent of the in-memory task.
     assert admin.get(f'/api/v1/records/{tid}').json()['data']['metadata']['status']=='completed'
+
+
+def test_legacy_cv_pdf_download_generates_and_persists_pdf(context, monkeypatch):
+    sessions, tmp = context
+    admin = signed_in('admin@company.test')
+    output = tmp / 'output'
+    archive = output / 'archive' / 'legacy-cv'
+    archive.mkdir(parents=True)
+    pptx = archive / 'resume.pptx'
+    pptx.write_bytes(b'PPTX fixture')
+    pdf = archive / 'resume.pdf'
+
+    with sessions() as db:
+        db.add(Resource(
+            id='legacy-cv', owner_id=1, kind='cv', status='completed',
+            files=json.dumps({'pptx': str(pptx.resolve())}),
+        ))
+        db.commit()
+
+    def fake_ensure(source, target_dir):
+        assert source == str(pptx.resolve())
+        assert target_dir == str(archive)
+        pdf.write_bytes(b'%PDF generated fixture')
+        return str(pdf.resolve())
+
+    monkeypatch.setattr(
+        'app.services.pdf_converter.PdfConverterService.ensure_pdf_for_pptx',
+        fake_ensure,
+    )
+    response = admin.get('/api/v1/records/legacy-cv/download?format=pdf')
+    assert response.status_code == 200
+    assert response.content == b'%PDF generated fixture'
+    with sessions() as db:
+        assert json.loads(db.get(Resource, 'legacy-cv').files)['pdf'] == str(pdf.resolve())
 
 
 def test_cv_department_is_required_and_uses_fixed_directory(context, monkeypatch):

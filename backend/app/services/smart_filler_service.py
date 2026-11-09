@@ -1486,7 +1486,7 @@ class SmartFillerService:
             
             # ========== 第三步：找到并保存公司表格 ==========
             print(f"\n🏢 第三步：保存公司表格...")
-            (original_company_table, original_company_table_element, 
+            (original_company_table, original_company_table_shape,
              original_company_table_top, company_table_slide_idx) = SmartFillerService._find_and_save_company_table(prs)
             
             # 删除所有页面的公司表格
@@ -1534,7 +1534,10 @@ class SmartFillerService:
                 else:
                     print(f"   ✅ 空间足够，公司表格放在最后一页固定位置")
                     target_slide = prs.slides[last_page_idx]
-                    target_slide.shapes._spTree.insert_element_before(original_company_table_element, 'p:extLst')
+                    company_table_element = SmartFillerService._clone_shape_element(
+                        original_company_table_shape, target_slide
+                    )
+                    target_slide.shapes._spTree.insert_element_before(company_table_element, 'p:extLst')
                     new_company_table = SmartFillerService.get_company_table(target_slide)
                     if new_company_table:
                         new_company_table.top = original_company_table_top
@@ -1896,7 +1899,7 @@ class SmartFillerService:
     def _find_and_save_company_table(prs: Presentation) -> tuple:
         """查找并保存公司表格信息"""
         original_company_table = None
-        original_company_table_element = None
+        original_company_table_shape = None
         original_company_table_top = 0
         company_table_slide_idx = -1
         
@@ -1904,14 +1907,18 @@ class SmartFillerService:
             ct = SmartFillerService.get_company_table(slide)
             if ct:
                 original_company_table = ct
-                original_company_table_element = deepcopy(ct.element)
+                # Keep the source shape and its slide part so every relationship
+                # can be remapped when the table is restored to another slide.
+                # A detached raw XML deepcopy preserves stale rIds and can make
+                # PowerPoint repair the presentation.
+                original_company_table_shape = ct
                 original_company_table_top = ct.top
                 company_table_slide_idx = slide_idx
                 print(f"   🏢 找到公司表格在第{slide_idx + 1}页")
                 print(f"      位置: {PageConstraints.emu_to_cm(original_company_table_top):.2f}cm")
                 break
         
-        return (original_company_table, original_company_table_element, 
+        return (original_company_table, original_company_table_shape,
                 original_company_table_top, company_table_slide_idx)
     
     @staticmethod
@@ -1981,7 +1988,7 @@ class SmartFillerService:
     
     @staticmethod
     def _insert_intermediate_page(prs: Presentation, company_table_slide_idx: int,
-                                  original_company_table_element, original_company_table_top):
+                                  original_company_table_shape, original_company_table_top):
         """插入中间页面"""
         source_slide = prs.slides[0] if len(prs.slides) > 0 else prs.slides[-1]
         intermediate_slide = SmartFillerService._duplicate_slide_advanced(prs, source_slide)
@@ -2042,7 +2049,10 @@ class SmartFillerService:
         print(f"   ✅ 已移动{len(content_shapes)}个形状到中间页面")
         
         last_slide = prs.slides[-1]
-        last_slide.shapes._spTree.insert_element_before(original_company_table_element, 'p:extLst')
+        company_table_element = SmartFillerService._clone_shape_element(
+            original_company_table_shape, last_slide
+        )
+        last_slide.shapes._spTree.insert_element_before(company_table_element, 'p:extLst')
         new_company_table = SmartFillerService.get_company_table(last_slide)
         if new_company_table:
             new_company_table.top = original_company_table_top
@@ -2050,10 +2060,13 @@ class SmartFillerService:
     
     @staticmethod
     def _restore_company_table(prs: Presentation, company_table_slide_idx: int,
-                              original_company_table_element, original_company_table_top):
+                              original_company_table_shape, original_company_table_top):
         """恢复公司表格到原位置"""
         last_slide = prs.slides[company_table_slide_idx] if company_table_slide_idx >= 0 else prs.slides[-1]
-        last_slide.shapes._spTree.insert_element_before(original_company_table_element, 'p:extLst')
+        company_table_element = SmartFillerService._clone_shape_element(
+            original_company_table_shape, last_slide
+        )
+        last_slide.shapes._spTree.insert_element_before(company_table_element, 'p:extLst')
         new_company_table = SmartFillerService.get_company_table(last_slide)
         if new_company_table:
             new_company_table.top = original_company_table_top
@@ -2424,16 +2437,41 @@ class SmartFillerService:
 
     @staticmethod
     def _remove_dangling_shape_tags(prs) -> int:
-        """Remove only invisible Office tag metadata with missing relations.
+        """Remove invisible Office shape tags without damaging required XML.
 
-        Missing relationships for visible content (pictures, hyperlinks, etc.)
-        are never discarded because doing so would hide content loss.
+        PowerPoint shape tags carry application metadata, not visible resume
+        content.  Copies across slides can leave stale relations or make older
+        PowerPoint versions reject shared tag parts.  Remove the ``p:tags``
+        element itself and its now-unused relationship, while always preserving
+        its required ``p:nvPr`` parent. Missing relations on visible content
+        still fail the save rather than hiding content loss.
         """
         relationship_ns = SmartFillerService._RELATIONSHIP_ATTRIBUTE_NS
         removed = 0
         for slide in prs.slides:
             valid_ids = set(slide.part.rels.keys())
             for node in list(slide.element.iter()):
+                if etree.QName(node).localname == "tags":
+                    relation_ids = {
+                        value
+                        for attribute, value in node.attrib.items()
+                        if attribute.startswith(relationship_ns) and value
+                    }
+                    parent = node.getparent()
+                    if parent is None:
+                        raise ValueError("Unable to remove Office tag metadata")
+                    parent.remove(node)
+                    removed += 1
+                    remaining_ids = {
+                        value
+                        for candidate in slide.element.iter()
+                        for attribute, value in candidate.attrib.items()
+                        if attribute.startswith(relationship_ns) and value
+                    }
+                    for relation_id in relation_ids - remaining_ids:
+                        if relation_id in slide.part.rels:
+                            slide.part.drop_rel(relation_id)
+                    continue
                 missing = {
                     value
                     for attribute, value in node.attrib.items()
@@ -2443,17 +2481,9 @@ class SmartFillerService:
                 }
                 if not missing:
                     continue
-                if etree.QName(node).localname != "tags":
-                    raise ValueError(
-                        "PPTX visible content references missing relationships: "
-                        + ", ".join(sorted(missing))
-                    )
-                parent = node.getparent()
-                container = parent if parent is not None else node
-                grandparent = container.getparent()
-                if grandparent is None:
-                    raise ValueError("Unable to remove dangling Office tag metadata")
-                grandparent.remove(container)
-                removed += 1
+                raise ValueError(
+                    "PPTX visible content references missing relationships: "
+                    + ", ".join(sorted(missing))
+                )
         return removed
 

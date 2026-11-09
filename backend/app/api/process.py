@@ -233,4 +233,5 @@ async def download_task_output(task_id: str, format: str = "pptx"):
         path=file_path,
         media_type=media_type,
         filename=download_name,
+        headers={"Cache-Control": "no-store"},
     )

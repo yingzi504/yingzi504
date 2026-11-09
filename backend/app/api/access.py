@@ -407,4 +407,8 @@ def download_record(resource_id: str, format: Literal["pptx", "pdf", "docx"], us
     path = Path(value).resolve()
     if not path.is_relative_to(settings.output_path.resolve()) or not path.is_file():
         raise HTTPException(404, "文件不存在")
-    return FileResponse(path, filename=cv_download_filename(path.name))
+    return FileResponse(
+        path,
+        filename=cv_download_filename(path.name),
+        headers={"Cache-Control": "no-store"},
+    )

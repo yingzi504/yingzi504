@@ -48,7 +48,34 @@ def test_skills_fallback_extracts_tools_from_experience():
     ExtractorService._infer_skills(
         data, "Built a test bench and used CANoe, Python, Linux and ADB for infotainment testing."
     )
-    assert data["tech_skills"] == "CANoe, Python, Linux, ADB, Test bench"
+    assert data["tech_skills"] == "CANoe; ADB"
+
+
+def test_skills_keep_only_source_backed_named_software():
+    data = {
+        "tech_skills": "CANoe; Python; Agile; CAN; Jira; InventedTool",
+        "work": [],
+        "project": [],
+    }
+    ExtractorService._infer_skills(
+        data,
+        "Used CANoe and Jira for CAN testing in an Agile team; developed Python scripts.",
+    )
+    assert data["tech_skills"] == "CANoe; Jira"
+
+
+def test_skills_remove_model_items_without_source_evidence():
+    data = {"tech_skills": "CANoe software; Jira", "work": [], "project": []}
+    ExtractorService._infer_skills(
+        data, "Used CANoe software and created reports with Microsoft Office."
+    )
+    assert data["tech_skills"] == "CANoe; Microsoft Office"
+
+
+def test_plain_office_word_is_not_treated_as_microsoft_office():
+    data = {"tech_skills": "Office", "work": [], "project": []}
+    ExtractorService._infer_skills(data, "Worked from the Shanghai office.")
+    assert data["tech_skills"] is None
 
 
 def test_kan_name_does_not_become_candidate():

@@ -46,6 +46,7 @@ def test_relationship_aware_shape_copy_produces_valid_package(tmp_path):
     shape = _shape_with_relationship(source_slide)
     cloned = SmartFillerService._clone_shape_element(shape, target_slide)
     target_slide.shapes._spTree.insert_element_before(cloned, "p:extLst")
+    SmartFillerService._remove_dangling_shape_tags(presentation)
     output = tmp_path / "valid-copy.pptx"
     presentation.save(output)
 
@@ -72,8 +73,14 @@ def test_dangling_office_tags_are_removed_without_losing_text(tmp_path):
     reopened = Presentation(output)
     result = validate_pptx(str(output))
 
-    assert removed == 1
-    assert expected_text in [candidate.text for candidate in reopened.slides[-1].shapes]
+    assert removed >= 1
+    cloned_shape = next(
+        candidate
+        for candidate in reopened.slides[-1].shapes
+        if candidate.text == expected_text
+    )
+    assert "<p:nvPr" in cloned_shape.element.xml
+    assert "<p:tags" not in cloned_shape.element.xml
     assert not [
         issue for issue in result.errors if issue.category == "package_integrity"
     ]
@@ -94,9 +101,62 @@ def test_empty_relationship_attribute_is_not_treated_as_dangling(tmp_path):
     assert next(
         node for node in cloned.iter() if etree.QName(node).localname == "optional-reference"
     ).get(relationship_attribute) == ""
-    assert SmartFillerService._remove_dangling_shape_tags(presentation) == 0
+    removed = SmartFillerService._remove_dangling_shape_tags(presentation)
+    assert removed >= 0
 
     output = tmp_path / "empty-relationship-value.pptx"
+    presentation.save(output)
+    result = validate_pptx(str(output))
+
+    assert not [
+        issue for issue in result.errors if issue.category == "package_integrity"
+    ]
+
+
+def test_all_office_tags_are_removed_but_required_nvpr_is_preserved(tmp_path):
+    presentation = Presentation(TEMPLATE)
+    before = sum(
+        1
+        for slide in presentation.slides
+        for node in slide.element.iter()
+        if etree.QName(node).localname == "tags"
+    )
+    assert before > 0
+
+    removed = SmartFillerService._remove_dangling_shape_tags(presentation)
+    output = tmp_path / "tags-removed.pptx"
+    presentation.save(output)
+    reopened = Presentation(output)
+
+    assert removed == before
+    assert not [
+        node
+        for slide in reopened.slides
+        for node in slide.element.iter()
+        if etree.QName(node).localname == "tags"
+    ]
+    for slide in reopened.slides:
+        for shape in slide.shapes:
+            non_visual = shape.element.find(".//{http://schemas.openxmlformats.org/presentationml/2006/main}nvPr")
+            if shape.shape_type is not None:
+                assert non_visual is not None
+
+
+def test_company_table_relocation_uses_relationship_aware_clone(tmp_path):
+    presentation = Presentation(TEMPLATE)
+    company_table, saved_shape, top, _ = SmartFillerService._find_and_save_company_table(
+        presentation
+    )
+    assert company_table is not None
+    assert saved_shape is company_table
+
+    SmartFillerService._remove_company_table(presentation)
+    target_slide = presentation.slides.add_slide(presentation.slide_layouts[0])
+    cloned = SmartFillerService._clone_shape_element(saved_shape, target_slide)
+    target_slide.shapes._spTree.insert_element_before(cloned, "p:extLst")
+    SmartFillerService._remove_dangling_shape_tags(presentation)
+
+    output = tmp_path / "relocated-company-table.pptx"
     presentation.save(output)
     result = validate_pptx(str(output))
 

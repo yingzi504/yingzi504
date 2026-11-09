@@ -554,6 +554,7 @@ async def download_filled_ppt(filename: str, format: str = "pptx"):
             filename=download_name,
             media_type=media_type,
             headers={
+                "Cache-Control": "no-store",
                 "Content-Disposition": (
                     f"attachment; filename*=UTF-8''{encoded_filename}"
                 ),
