@@ -8,6 +8,7 @@ import App from './App.vue'
 import router from './router'
 import { i18n } from './locales'
 import './styles/index.css'
+import { startSessionMonitoring } from './stores/auth'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -23,3 +24,4 @@ app.use(ElementPlus)
 app.use(i18n)
 
 app.mount('#app')
+startSessionMonitoring()

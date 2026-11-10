@@ -93,7 +93,9 @@ const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const accountInitial = computed(() => Array.from(account.value?.email || 'U')[0].toUpperCase())
-const accountRole = computed(() => account.value?.role === 'admin'
+const accountRole = computed(() => account.value?.role === 'superadmin'
+  ? (locale.value === 'zh-CN' ? '超级管理员' : 'Super administrator')
+  : account.value?.role === 'admin'
   ? (locale.value === 'zh-CN' ? '管理员' : 'Administrator')
   : (locale.value === 'zh-CN' ? '普通用户' : 'Member'))
 const accountMenuLabel = computed(() => `${locale.value === 'zh-CN' ? '账号菜单' : 'Account menu'} · ${account.value?.email || ''}`)
@@ -109,9 +111,11 @@ const menuItems = computed(() => [
   { path: '/cv-library', name: t('nav.cvLibrary'), icon: FolderOpened },
   { path: '/jd-library', name: t('nav.jdLibrary'), icon: Collection },
   { path: '/terminology', name: t('nav.terminology'), icon: Notebook },
-  { path: '/recruitment-tools', name: t('nav.recruitmentTools'), icon: Briefcase },
-  { path: '/offboarding-tools', name: t('nav.offboardingTools'), icon: SwitchButton },
-  ...(account.value?.role === 'admin' ? [{ path: '/admin', name: '管理后台', icon: UserFilled }] : [])
+  ...(account.value?.role === 'superadmin' || account.value?.role === 'admin' ? [
+    { path: '/recruitment-tools', name: t('nav.recruitmentTools'), icon: Briefcase },
+    { path: '/offboarding-tools', name: t('nav.offboardingTools'), icon: SwitchButton }
+  ] : []),
+  ...(account.value?.role === 'superadmin' || account.value?.role === 'admin' ? [{ path: '/admin', name: '管理后台', icon: UserFilled }] : [])
 ].filter(item => {
   const features: Record<string, string> = { '/cv-library': 'cv', '/templates': 'templates', '/jd-library': 'library', '/terminology': 'terminology' }
   return !features[item.path] || canUse(features[item.path])

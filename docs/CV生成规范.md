@@ -132,6 +132,8 @@
 | --- | --- | --- | --- |
 | CV-ACCESS-01 | CV 处理需登录、完成初始改密并具备 CV 功能权限；原始上传及任务只能由所属用户或管理员访问 | `api/access.py`、`api/process.py`、`services/access_service.py` | 已接入；`tests/test_access_control.py` 验证匿名拒绝、跨用户访问拒绝与功能权限 |
 | CV-AUDIT-01 | 记录账号、操作时间、接口、结果码及关联任务；后台可检索 | `models/access.py`、`api/access.py`、`services/access_service.py` | 已接入；测试验证登录、任务状态和下载事件，不记录密码或请求正文 |
+| CV-ACCESS-02 | 普通员工的任务、文件和操作日志均限定本人；管理员可查询全部用户的任务和日志；超级管理员可授权管理员 | 现有角色与归属校验＋个人`/audit`接口；`api/access.py`、`AccountRecords.vue`、`AccountAudit.vue`、`AdminView.vue` | 已验证；权限与超级管理员专项测试通过；超级管理员 `amiao504` 已创建并要求首次改密 |
+| CV-AUDIT-02 | 管理员按用户、操作分类、资源类型、账号类型、部门、结果、时间查询并统计操作；记录操作时角色／账号类型及资源部门；历史仅按已有信息回填分类和结果 | `models/access.py`、`models/migrations.py`、`services/access_service.py`、`api/access.py`、`AdminView.vue` | 已验证；权限回归与迁移幂等测试通过；代码确定性分类，不记录请求正文，IP默认脱敏 |
 | CV-ARCHIVE-01 | CV 完成文件按任务编号归档；登录用户仅调取本人文件，管理员可调取全部；启用前文件仅管理员可访问 | `services/pipeline_service.py`、`services/access_service.py`、`api/access.py` | 已接入；测试验证源输出覆盖后归档保留、文件路径边界及历史隔离 |
 
 账号、权限、后台使用与首次管理员创建方式见 [账号与后台管理](账号与后台管理.md)。此功能不改变 CV 内容生成规范。原进行中任务仍不能跨后端重启恢复，重启后会标记中断；完成文件已可持久调取。

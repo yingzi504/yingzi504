@@ -15,14 +15,12 @@ export interface CityPolicy {
   readonly supplementalBp: number
   readonly seriousMedical: number
 }
-export const RULES = Object.freeze({ salaryMonths: 12, bonusMonths: 2, annualHours: 1880, overhead: 169200, dailyHours: 8 })
-export const CITY_POLICIES: readonly CityPolicy[] = Object.freeze([
-  { id:'SH', name:'上海', row:3, socialMin:7546, socialMax:37731, housingMin:2740, housingMax:37731, medicalBp:1050, injuryBp:16, housingBp:700, supplementalBp:800, seriousMedical:0 },
-  { id:'BJ', name:'北京', row:4, socialMin:7270, socialMax:36348, housingMin:2540, housingMax:36348, medicalBp:900, injuryBp:20, housingBp:1200, supplementalBp:0, seriousMedical:3 },
-  { id:'HF', name:'合肥', row:5, socialMin:4311, socialMax:21556, housingMin:3787, housingMax:31564, medicalBp:640, injuryBp:20, housingBp:1200, supplementalBp:0, seriousMedical:0 },
-  { id:'SY', name:'沈阳', row:6, socialMin:4533, socialMax:22665, housingMin:4533, housingMax:30657, medicalBp:860, injuryBp:70, housingBp:1200, supplementalBp:0, seriousMedical:0 },
-  { id:'WH', name:'芜湖', row:7, socialMin:4311, socialMax:21556, housingMin:2170, housingMax:26991, medicalBp:900, injuryBp:20, housingBp:1200, supplementalBp:0, seriousMedical:0 },
-].map(p => Object.freeze(p as CityPolicy)))
+export const RULES = { salaryMonths: 0, bonusMonths: 0, annualHours: 0, overhead: 0, dailyHours: 0 }
+export const CITY_POLICIES: CityPolicy[] = []
+export function configureRecruitmentRules(config:{rules:typeof RULES;cities:CityPolicy[]}) {
+  Object.assign(RULES, config.rules)
+  CITY_POLICIES.splice(0, CITY_POLICIES.length, ...config.cities.map(city => Object.freeze({...city})))
+}
 export const cityPolicy = (id:CityId) => CITY_POLICIES.find(p => p.id === id)!
 export const isAmount = (v:Amount): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0
 const cents = (n:number) => Math.round(n * 100)

@@ -30,7 +30,7 @@ app.add_middleware(
 # 注册路由 — 当前版本 v1
 # 未来新增 v2: app.include_router(create_versioned_router("v2"), prefix="/api/v2")
 from app.api.access import router as access_router, access_middleware
-from app.services.access_service import import_legacy_outputs
+from app.services.access_service import import_legacy_outputs, backfill_audit_categories
 
 app.middleware("http")(access_middleware)
 app.include_router(access_router, prefix="/api/v1")
@@ -38,6 +38,7 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.on_event("startup")
 def initialize_access_archive():
+    backfill_audit_categories()
     import_legacy_outputs()
 
 

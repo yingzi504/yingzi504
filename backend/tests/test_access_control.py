@@ -111,6 +111,9 @@ def test_ownership_task_archive_download_and_audit(context, monkeypatch):
     assert admin.get(f'/api/v1/records/{tid}/download?format=pptx').content == b'original output'
     assert bob.get(f'/api/v1/records/{tid}/download?format=pptx').status_code == 404
     assert bob.get(f'/api/v1/records/{tid}').status_code == 404
+    def unavailable(*args, **kwargs):
+        raise FileNotFoundError('PDF converter unavailable in this fixture')
+    monkeypatch.setattr('app.services.pdf_converter.PdfConverterService.ensure_pdf_for_pptx', unavailable)
     assert alice.get(f'/api/v1/records/{tid}/download?format=pdf').status_code == 404
     assert bob.get('/api/v1/records').json()['total'] == 0
     assert alice.get('/api/v1/records').json()['total'] == 1
@@ -184,6 +187,9 @@ def test_admin_permissions_disable_reset_and_throttling(context):
     users=admin.get('/api/v1/admin/users').json()['data'];uid=next(u['id'] for u in users if u['email']=='alice@company.test')
     body={'active':True,'account_type':'limited','permissions':['jd']}
     assert admin.put(f'/api/v1/admin/users/{uid}',json=body).status_code==200
+    assert alice.get('/api/v1/auth/me').status_code==401
+    alice=TestClient(app)
+    assert alice.post('/api/v1/auth/login', json={'email':'alice@company.test','password':'Changed-password-123'}).status_code==200
     assert alice.get('/api/v1/process').status_code==403
     assert alice.get('/api/v1/jd/list').status_code==403
     assert alice.post('/api/v1/admin/users',json={'email':'other@company.test'}).status_code==403
@@ -201,6 +207,76 @@ def test_admin_permissions_disable_reset_and_throttling(context):
             db.add(AuditEvent(action='auth.login.failed',status_code=401,ip_address='testclient'))
         db.commit()
     assert TestClient(app).post('/api/v1/auth/login',json={'email':'bob@company.test','password':'123456'}).status_code==429
+
+
+def test_auth_version_invalidates_stale_session_even_if_session_row_remains(context):
+    sessions, _ = context
+    alice = signed_in('alice@company.test')
+    with sessions() as db:
+        user = db.query(User).filter_by(email='alice@company.test').one()
+        session = db.query(LoginSession).filter_by(user_id=user.id).one()
+        assert session.auth_version == user.auth_version
+        user.auth_version += 1
+        db.commit()
+    assert alice.get('/api/v1/auth/me').status_code == 401
+
+
+def test_superadmin_live_login_count_and_admin_grants(context):
+    sessions, _ = context
+    with sessions() as db:
+        service.create_user(db, 'root@company.test', role='superadmin')
+    root = signed_in('root@company.test')
+    admin = signed_in('admin@company.test')
+    bob = signed_in('bob@company.test')
+    users = root.get('/api/v1/admin/users').json()['data']
+    bob_id = next(user['id'] for user in users if user['email'] == 'bob@company.test')
+    admin_id = next(user['id'] for user in users if user['email'] == 'admin@company.test')
+    root_id = next(user['id'] for user in users if user['email'] == 'root@company.test')
+
+    assert root.get('/api/v1/admin/statistics').json()['data']['logged_in_users'] == 3
+    assert admin.get('/api/v1/admin/statistics').json()['data']['logged_in_users'] == 3
+    assert admin.post('/api/v1/admin/users', json={'email': 'blocked-admin@company.test', 'role': 'admin'}).status_code == 403
+    assert admin.post(f'/api/v1/superadmin/users/{bob_id}/grant-admin').status_code == 403
+    assert admin.get('/api/v1/admin/tools/recruitment-config').status_code == 200
+    assert bob.get('/api/v1/admin/tools/recruitment-config').status_code == 403
+    calculation = admin.post('/api/v1/admin/tools/recruitment-calculate', json={'plans': [
+        {'id': 1, 'isCurrent': True, 'city': 'SH', 'basePay': 18000, 'onsite': 0,
+         'annualBonus': 54000, 'projectBonus': 0, 'benefits': 21600, 'supplementary': 0,
+         'contributionMode': 'salary'},
+        {'id': 2, 'isCurrent': False, 'city': 'SH', 'basePay': 20000, 'onsite': 0,
+         'annualBonus': 0, 'projectBonus': 0, 'benefits': 5800, 'supplementary': 19200,
+         'contributionMode': 'salary'},
+    ]})
+    assert calculation.status_code == 200
+    calculated = calculation.json()['data']
+    assert calculated['1']['totalPackage'] == 291600
+    assert calculated['2']['annualBonus'] == 40000
+    assert calculated['2']['totalPackage'] == 305000
+    assert calculated['2']['increaseRate'] == 0.05
+    assert calculated['2']['cities']['SH']['rates']['hourly'] > 0
+    assert bob.post('/api/v1/admin/tools/recruitment-calculate', json={'plans': [{'id': 1}]}).status_code == 403
+    assert root.post(f'/api/v1/superadmin/users/{bob_id}/grant-admin').status_code == 200
+    assert bob.get('/api/v1/auth/me').status_code == 401
+
+    # A promoted administrator must re-authenticate; ordinary admins cannot
+    # edit or disable other administrator accounts.
+    bob = TestClient(app)
+    assert bob.post('/api/v1/auth/login', json={
+        'email': 'bob@company.test', 'password': 'Changed-password-123'
+    }).status_code == 200
+    assert bob.get('/api/v1/admin/users').status_code == 403
+    body = {'active': False, 'account_type': 'standard', 'permissions': []}
+    assert admin.put(f'/api/v1/admin/users/{bob_id}', json=body).status_code == 403
+    assert admin.post(f'/api/v1/admin/users/{bob_id}/reset-password').status_code == 403
+    assert root.post(f'/api/v1/admin/users/{root_id}/reset-password').status_code == 403
+    assert root.post('/api/v1/admin/users', json={'email': 'new-admin@company.test', 'role': 'admin'}).status_code == 200
+    assert root.post(f'/api/v1/superadmin/users/{admin_id}/revoke-admin').status_code == 200
+    assert admin.get('/api/v1/auth/me').status_code == 401
+    with sessions() as db:
+        assert db.get(User, admin_id).role == 'member'
+
+    with sessions() as db:
+        assert db.get(User, bob_id).role == 'admin'
 
 
 def test_legacy_files_admin_only_and_path_boundary(context):
@@ -247,3 +323,94 @@ def test_jd_task_archive_and_restart_state(context, monkeypatch):
         assert db.get(Resource,tid).status == 'completed'
         assert db.query(Resource).filter_by(kind='legacy').count() == 0
     assert alice.get(f'/api/v1/records/{tid}/download?format=docx').content == b'JD document'
+
+
+def test_personal_audit_cannot_expand_scope_and_admin_can_classify(context):
+    sessions, _ = context
+    alice, bob, admin = [signed_in(name+'@company.test') for name in ('alice', 'bob', 'admin')]
+    with sessions() as db:
+        alice_id = db.query(User).filter_by(email='alice@company.test').one().id
+        bob_id = db.query(User).filter_by(email='bob@company.test').one().id
+    service.audit('cv.task.completed', resource_id='alice-task', actor={'id': alice_id}, ip='10.2.13.61')
+    service.audit('jd.task.failed', 500, resource_id='bob-task', actor={'id': bob_id})
+    response = alice.get('/api/v1/audit', params={'user_id': bob_id, 'action': '.task.'})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['total'] == 1
+    assert payload['summary']['by_category'] == {'cv': 1}
+    assert payload['data'][0]['resource_id'] == 'alice-task'
+    assert 'ip_address' not in payload['data'][0]
+    assert payload['data'][0]['actor_role'] == 'member'
+    assert alice.get('/api/v1/admin/audit').status_code == 403
+    assert bob.get('/api/v1/admin/statistics').status_code == 403
+    payload = admin.get('/api/v1/admin/audit', params={'action': '.task.'}).json()
+    assert payload['total'] == 2
+    assert payload['summary']['success'] == 1 and payload['summary']['failed'] == 1
+    assert next(item for item in payload['data'] if item['user_id'] == alice_id)['ip_address'] == '10.2.13.*'
+    filtered = admin.get('/api/v1/admin/audit', params={'category': 'jd', 'result': 'failed', 'user_id': bob_id}).json()
+    assert filtered['total'] == 1
+    assert filtered['data'][0]['resource_id'] == 'bob-task'
+    assert alice.get('/api/v1/audit', params={'category': 'not-real'}).status_code == 422
+    assert alice.get('/api/v1/audit', params={'start': '2026-11-10T00:00:00Z', 'end': '2026-11-01T00:00:00Z'}).status_code == 422
+    assert TestClient(app).get('/api/v1/audit').status_code == 401
+
+
+def test_audit_snapshots_account_type_resource_department_and_utc_filters(context):
+    sessions, _ = context
+    admin = signed_in('admin@company.test')
+    with sessions() as db:
+        user = db.query(User).filter_by(email='alice@company.test').one()
+        user.account_type = 'hr'
+        uid = user.id
+        db.add(Resource(id='owned-cv', owner_id=uid, kind='cv', department='TD', status='completed'))
+        db.commit()
+    service.audit('GET /api/v1/records/{resource_id}/download', resource_id='owned-cv', actor={'id': uid})
+    with sessions() as db:
+        event = db.query(AuditEvent).filter_by(resource_id='owned-cv').one()
+        event.created_at = datetime(2026, 11, 9, 1, 0)
+        db.get(User, uid).account_type = 'changed-later'
+        db.commit()
+    params = dict(category='file', resource_type='cv', department='TD', account_type='hr',
+                  start='2026-11-09T08:30:00+08:00', end='2026-11-09T09:30:00+08:00')
+    payload = admin.get('/api/v1/admin/audit', params=params).json()
+    assert payload['total'] == 1
+    assert payload['data'][0]['account_type'] == 'hr'
+    assert payload['data'][0]['actor_role'] == 'member'
+    assert payload['data'][0]['department'] == 'TD'
+    assert payload['data'][0]['created_at'].endswith('Z')
+    assert admin.get('/api/v1/admin/audit', params=dict(params, resource_id='other')).json()['total'] == 0
+
+
+def test_historical_audit_backfill_is_idempotent_without_inventing_roles(context):
+    sessions, _ = context
+    with sessions() as db:
+        db.add(AuditEvent(action='GET /api/v1/records/{resource_id}/download', status_code=404))
+        db.add(AuditEvent(action='auth.login.failed', status_code=401))
+        db.commit()
+    service.backfill_audit_categories()
+    service.backfill_audit_categories()
+    with sessions() as db:
+        rows = db.query(AuditEvent).order_by(AuditEvent.id).all()
+        assert len(rows) == 2
+        assert [row.category for row in rows] == ['file', 'auth']
+        assert all(row.result == 'failed' and row.actor_role == '' and row.account_type == '' for row in rows)
+
+
+def test_audit_migration_preserves_old_rows_and_is_idempotent(monkeypatch):
+    from sqlalchemy import inspect
+    from app.models import migrations
+    engine = create_engine('sqlite://')
+    with engine.begin() as connection:
+        connection.exec_driver_sql('CREATE TABLE access_audit (id INTEGER PRIMARY KEY, action VARCHAR(120), status_code INTEGER)')
+        connection.exec_driver_sql('CREATE TABLE access_users (id INTEGER PRIMARY KEY)')
+        connection.exec_driver_sql('CREATE TABLE access_sessions (token_hash VARCHAR(64) PRIMARY KEY)')
+        connection.exec_driver_sql("INSERT INTO access_audit VALUES (1, 'auth.login.failed', 401)")
+    monkeypatch.setattr(migrations, 'engine', engine)
+    migrations.ensure_runtime_columns()
+    migrations.ensure_runtime_columns()
+    assert set(migrations.ACCESS_AUDIT_COLUMNS).issubset({column['name'] for column in inspect(engine).get_columns('access_audit')})
+    assert set(migrations.ACCESS_USER_COLUMNS).issubset({column['name'] for column in inspect(engine).get_columns('access_users')})
+    assert set(migrations.ACCESS_SESSION_COLUMNS).issubset({column['name'] for column in inspect(engine).get_columns('access_sessions')})
+    with engine.connect() as connection:
+        assert connection.exec_driver_sql('SELECT id, action, status_code, category FROM access_audit').one() == (1, 'auth.login.failed', 401, '')
+    engine.dispose()

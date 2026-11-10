@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 declare module 'axios' {
   interface AxiosRequestConfig {
     skipErrorMessage?: boolean
+    skipAuthRedirect?: boolean
   }
 }
 
@@ -37,8 +38,9 @@ http.interceptors.response.use(
   },
   (error) => {
     const message = error.response?.data?.detail || error.message || '网络请求失败'
-    if (error.response?.status === 401 && !location.pathname.startsWith('/login') && !error.config?.url?.startsWith('/auth/')) {
-      location.assign('/login')
+    const isLoginRequest = error.config?.url?.startsWith('/auth/login')
+    if (error.response?.status === 401 && !isLoginRequest && !error.config?.skipAuthRedirect) {
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'))
     }
     if (!error.config?.skipErrorMessage) {
       ElMessage.error(message)

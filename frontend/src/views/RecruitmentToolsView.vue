@@ -1,5 +1,5 @@
 <template>
-  <div class="salary-workspace">
+  <div v-if="toolReady" class="salary-workspace">
     <div class="compact-toolbar">
       <el-radio-group v-model="view" aria-label="招聘工具工作区"><el-radio-button value="salary">薪资方案</el-radio-button><el-radio-button value="social">社保确认</el-radio-button><el-radio-button value="rates">Hourly / Daily Rate</el-radio-button><el-radio-button value="rules">固定规则</el-radio-button></el-radio-group>
       <div class="actions"><el-button size="small" @click="contextOpen=true">候选人信息</el-button><el-button size="small" @click="notesOpen=true">使用说明</el-button><el-button size="small" @click="loadExample">载入原表示例</el-button><el-button size="small" type="primary" :icon="Plus" @click="addPlan">新增报价</el-button></div>
@@ -39,7 +39,7 @@
           </tbody>
           <tfoot>
             <tr class="total-row"><th>候选人年包<small>Total Package · 元 / 年</small></th><td v-for="plan in plans" :key="plan.id"><strong>{{money(totalPackage(plan))}}</strong></td></tr>
-            <tr class="increase-row"><th>年包涨幅<small>按原表 ROUND(涨幅, 2)</small></th><td v-for="plan in plans" :key="plan.id" class="locked-cell">{{plan.isCurrent?'基准':percent(increaseRate(totalPackage(plan),currentTotal))}}</td></tr>
+            <tr class="increase-row"><th>年包涨幅<small>按原表 ROUND(涨幅, 2)</small></th><td v-for="plan in plans" :key="plan.id" class="locked-cell">{{plan.isCurrent?'基准':percent(increaseRate(plan))}}</td></tr>
             <tr><th>录入状态</th><td v-for="plan in plans" :key="plan.id"><span :title="missingFields(plan).join('、')" :class="missingFields(plan).length?'muted':'complete'">{{missingFields(plan).length?`待填 ${missingFields(plan).length} 项`:'年包已计算'}}</span></td></tr>
           </tfoot>
         </table>
@@ -70,7 +70,7 @@
       <div class="compact-policy">北京按本地成本计算 · 上海补充公积金已去重 <button @click="notesOpen=true">查看口径</button></div>
       <div v-if="!rateCities.length" class="empty-state">请选择至少一个工作地进行比较。</div>
       <div v-else class="table-scroll"><table class="rate-table"><thead><tr><th>工作地</th><th v-for="plan in proposals" :key="plan.id">{{plan.name}}<small>年包 {{money(totalPackage(plan))}}</small></th></tr></thead><tbody>
-        <tr v-for="city in selectedCities" :key="city.id"><th>{{city.name}}<small>{{rateUnit==='hourly'?'元 / 小时':'元 / 天'}}</small></th><td v-for="plan in proposals" :key="plan.id"><div class="rate-pair"><span>不含 Overhead<strong>{{money(rateFor(plan,city.id,false))}}</strong></span><span>含 Overhead<strong>{{money(rateFor(plan,city.id,true))}}</strong></span></div><div class="rate-detail">公司月缴费 {{money(contributions(city.id,contributionSalary(plan))?.employer)}}<span v-if="city.id==='SH'"> · 年包去重 {{money(plan.supplementary)}} / 年</span></div></td></tr>
+        <tr v-for="city in selectedCities" :key="city.id"><th>{{city.name}}<small>{{rateUnit==='hourly'?'元 / 小时':'元 / 天'}}</small></th><td v-for="plan in proposals" :key="plan.id"><div class="rate-pair"><span>不含 Overhead<strong>{{money(rateFor(plan,city.id,false))}}</strong></span><span>含 Overhead<strong>{{money(rateFor(plan,city.id,true))}}</strong></span></div><div class="rate-detail">公司月缴费 {{money(cityContributions(plan,city.id)?.employer)}}<span v-if="city.id==='SH'"> · 年包去重 {{money(plan.supplementary)}} / 年</span></div></td></tr>
       </tbody></table></div>
       <div class="panel-foot">缺少年包组成项或基数工资时显示“—”。各城市使用相同的手填年包比较；切换城市不会自动调整年包补充公积金或福利，请先在薪资方案中核对。</div>
     </section>
@@ -83,12 +83,14 @@
       <div class="panel-foot">未提供个税、税后收入或更多城市的规则，暂不计算。当前页面不会保存谈薪记录或发送给候选人。</div>
     </section>
   </div>
+  <div v-else class="empty-state">正在验证管理员权限并加载招聘规则…</div>
 </template>
 
 <script setup lang="ts">
-import {computed,ref} from 'vue'
+import {computed,onMounted,ref,watch} from 'vue'
 import {Plus,MoreFilled,Lock} from '@element-plus/icons-vue'
-import {CITY_POLICIES,RULES,annualBonus,cityPolicy,contributions,contributionSalary,quotationRates,increaseRate,missingFields,totalPackage,type Amount,type CityId,type SalaryPlan} from '@/utils/salaryCalculator'
+import http from '@/api/http'
+import {CITY_POLICIES,RULES,configureRecruitmentRules,cityPolicy,type Amount,type CityId,type SalaryPlan} from '@/utils/salaryCalculator'
 type InputKey='basePay'|'onsite'|'annualBonus'|'projectBonus'|'benefits'|'supplementary'
 type RowKey=InputKey|'months'|'total'
 const salaryRows:{key:RowKey;label:string;unit:string;hint?:string}[]=[
@@ -103,27 +105,39 @@ const salaryRows:{key:RowKey;label:string;unit:string;hint?:string}[]=[
 let nextId=1
 function makePlan(isCurrent=false):SalaryPlan {const id=nextId++;return {id,name:isCurrent?'当前薪资':`报价 ${id-1}`,isCurrent,city:'SH',basePay:undefined,onsite:undefined,annualBonus:undefined,projectBonus:undefined,benefits:undefined,supplementary:undefined,contributionMode:'salary',priorYearPay:undefined,note:''}}
 const plans=ref<SalaryPlan[]>([makePlan(true),makePlan(),makePlan(),makePlan()])
+const toolReady=ref(false)
+const calculations=ref<Record<string,any>>({})
 const contextOpen=ref(false),notesOpen=ref(false)
 const view=ref('salary'),rateUnit=ref('hourly'),selectedPlanId=ref(plans.value[1].id),exampleLoaded=ref(false)
 const rateCities=ref<CityId[]>(CITY_POLICIES.map(c=>c.id)),context=ref({candidate:'',pe:'',title:'',onboard:''})
-const proposals=computed(()=>plans.value.filter(p=>!p.isCurrent)),currentTotal=computed(()=>totalPackage(plans.value[0]))
+const proposals=computed(()=>plans.value.filter(p=>!p.isCurrent))
 const activePlan=computed(()=>proposals.value.find(p=>p.id===selectedPlanId.value)??proposals.value[0])
 const activePolicy=computed(()=>cityPolicy(activePlan.value.city))
-const activeSocial=computed(()=>contributions(activePlan.value.city,contributionSalary(activePlan.value)))
+const activeSocial=computed(()=>cityContributions(activePlan.value,activePlan.value.city))
 const selectedCities=computed(()=>CITY_POLICIES.filter(c=>rateCities.value.includes(c.id)))
 const money=(value:Amount)=>typeof value==='number'&&Number.isFinite(value)?value.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'
 const percent=(value:Amount)=>typeof value==='number'?`${(value*100).toFixed(2)}%`:'—'
 const isLocked=(key:RowKey,p:SalaryPlan)=>key==='months'||key==='total'||(key==='annualBonus'&&!p.isCurrent)
 function cellValue(key:RowKey,p:SalaryPlan){return key==='months'?String(RULES.salaryMonths):money(key==='total'?totalPackage(p):annualBonus(p))}
+const resultFor=(plan:SalaryPlan)=>calculations.value[String(plan.id)]
+const annualBonus=(plan:SalaryPlan):Amount=>resultFor(plan)?.annualBonus
+const totalPackage=(plan:SalaryPlan):Amount=>resultFor(plan)?.totalPackage
+const missingFields=(plan:SalaryPlan):string[]=>resultFor(plan)?.missingFields||[]
+const increaseRate=(plan:SalaryPlan):Amount=>resultFor(plan)?.increaseRate
+const cityContributions=(plan:SalaryPlan,city:CityId)=>resultFor(plan)?.cities?.[city]?.contributions
 function addPlan(){plans.value.push(makePlan());view.value='salary'}
 function planAction(cmd:string,plan:SalaryPlan){if(cmd==='copy')plans.value.push({...plan,id:nextId++,name:`${plan.name} 副本`.slice(0,30)});if(cmd==='remove'&&proposals.value.length>1){plans.value=plans.value.filter(p=>p.id!==plan.id);if(selectedPlanId.value===plan.id)selectedPlanId.value=proposals.value[0].id}}
 function clearPlans(){nextId=1;plans.value=[makePlan(true),makePlan(),makePlan(),makePlan()];selectedPlanId.value=plans.value[1].id;exampleLoaded.value=false}
 function loadExample(){clearPlans();const samples=[[18000,0,54000,0,21600,0],[20000,0,40000,0,5800,19200],[25000,0,50000,0,5800,0],[30000,0,60000,0,5800,0]];plans.value.forEach((p,i)=>{[p.basePay,p.onsite,p.annualBonus,p.projectBonus,p.benefits,p.supplementary]=samples[i]});exampleLoaded.value=true;view.value='salary'}
 function rateFor(plan:SalaryPlan,city:CityId,overhead:boolean){
-  const result=quotationRates(plan,city)
+  const result=resultFor(plan)?.cities?.[city]?.rates
   if(!result)return undefined
   return rateUnit.value==='daily'?(overhead?result.dailyWithOverhead:result.daily):(overhead?result.hourlyWithOverhead:result.hourly)
 }
+let calculationTimer:number|undefined
+async function calculate(){const result:any=await http.post('/admin/tools/recruitment-calculate',{plans:plans.value.map(({id,isCurrent,city,basePay,onsite,annualBonus,projectBonus,benefits,supplementary,contributionMode,priorYearPay})=>({id,isCurrent,city,basePay,onsite,annualBonus,projectBonus,benefits,supplementary,contributionMode,priorYearPay}))},{skipErrorMessage:true});calculations.value=result.data}
+watch(plans,()=>{window.clearTimeout(calculationTimer);calculationTimer=window.setTimeout(()=>void calculate(),150)},{deep:true})
+onMounted(async()=>{const result:any=await http.get('/admin/tools/recruitment-config');configureRecruitmentRules(result.data);rateCities.value=CITY_POLICIES.map(c=>c.id);await calculate();toolReady.value=true})
 </script>
 
 <style scoped>

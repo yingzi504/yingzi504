@@ -1,6 +1,7 @@
 """Account security and durable conversion ownership. No resume text in audit logs."""
 import hashlib
 import hmac
+import ipaddress
 import json
 import re
 import secrets
@@ -16,6 +17,70 @@ from app.models.access import User, AuditEvent, Resource
 
 current_actor = ContextVar("current_actor", default=None)
 FEATURES = {"cv", "jd", "library", "templates", "terminology"}
+ADMIN_ROLES = {"admin", "superadmin"}
+AUDIT_CATEGORIES = {
+    "auth": "登录与认证", "account": "账号与权限", "cv": "CV 处理",
+    "jd": "JD 处理", "file": "文件下载", "library": "库与资源查询",
+    "admin": "后台查询", "system": "其他系统操作",
+}
+
+
+def is_admin_role(value):
+    """Return whether a role or actor has administrator-level access."""
+    role = value.get("role") if isinstance(value, dict) else getattr(value, "role", value)
+    return role in ADMIN_ROLES
+
+
+def is_superadmin(value):
+    role = value.get("role") if isinstance(value, dict) else getattr(value, "role", value)
+    return role == "superadmin"
+
+
+def classify_audit(action):
+    """Classify known business events and route templates, without request bodies."""
+    value = action.lower()
+    if value.startswith("auth.") or "/auth/" in value:
+        return "auth", "user"
+    if value.startswith("admin.user.") or "/admin/users" in value:
+        return "account", "user"
+    if "/admin/" in value:
+        return "admin", "audit"
+    if "download" in value:
+        return "file", "file"
+    if "/jd-conversion" in value or value.startswith("jd."):
+        return "jd", "jd"
+    if "/process" in value or value.startswith("cv.") or "/resume/" in value:
+        return "cv", "cv"
+    if value.startswith("upload."):
+        return "cv", "upload"
+    if any(part in value for part in ("/cv-library", "/records", "/history", "/jd", "/template", "/termbase", "/audit")):
+        return "library", "resource"
+    return "system", ""
+
+
+def masked_ip(value):
+    if not value:
+        return None
+    try:
+        address = ipaddress.ip_address(value)
+        if address.version == 4:
+            return ".".join(value.split(".")[:3]) + ".*"
+        return str(ipaddress.ip_network(f"{value}/64", strict=False))
+    except ValueError:
+        return "hidden"
+
+
+def backfill_audit_categories():
+    """Recover only facts derivable from old action strings and result codes."""
+    with SessionLocal() as db:
+        while True:
+            rows = db.query(AuditEvent).filter(AuditEvent.category == "").limit(500).all()
+            if not rows:
+                break
+            for event in rows:
+                event.category, event.resource_type = classify_audit(event.action)
+                event.result = "success" if event.status_code < 400 else "failed"
+            db.commit()
 
 
 def password_hash(password):
@@ -44,6 +109,7 @@ def public_user(user):
     return {"id": user.id, "email": user.email, "role": user.role,
             "account_type": user.account_type, "permissions": json.loads(user.permissions),
             "active": user.active, "must_change_password": user.must_change_password,
+            "auth_version": user.auth_version,
             "created_at": user.created_at.isoformat(),
             "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None}
 
@@ -60,11 +126,25 @@ def create_user(db, email, role="member", account_type="standard", permissions=N
     return user
 
 
-def audit(action, status_code=200, resource_id=None, actor=None, ip=None):
-    actor = actor or current_actor.get()
+def audit(action, status_code=200, resource_id=None, actor=None, ip=None, target_user_id=None):
+    actor = actor if actor is not None else current_actor.get()
     with SessionLocal() as db:
+        actor = actor or {}
+        # Internal lifecycle events supply only the owner ID. Snapshot the
+        # current account attributes rather than silently discarding them.
+        user = db.get(User, actor["id"]) if actor.get("id") else None
+        category, resource_type = classify_audit(action)
+        department = ""
+        resource = db.get(Resource, str(resource_id)) if resource_id else None
+        if resource and (is_admin_role(actor) or resource.owner_id == actor.get("id")):
+            resource_type, department = resource.kind, resource.department or ""
         db.add(AuditEvent(user_id=actor["id"] if actor else None, action=action,
-                          status_code=status_code, resource_id=resource_id, ip_address=ip))
+                          status_code=status_code, resource_id=resource_id, ip_address=ip,
+                          category=category, resource_type=resource_type, department=department,
+                          actor_role=actor.get("role") or (user.role if user else ""),
+                          account_type=actor.get("account_type") or (user.account_type if user else ""),
+                          target_user_id=target_user_id,
+                          result="success" if status_code < 400 else "failed"))
         db.commit()
 
 
@@ -84,7 +164,7 @@ def owned_resource(resource_id, actor=None):
     actor = actor or current_actor.get()
     with SessionLocal() as db:
         item = db.get(Resource, resource_id)
-        if not item or not actor or (actor["role"] != "admin" and item.owner_id != actor["id"]):
+        if not item or not actor or (not is_admin_role(actor) and item.owner_id != actor["id"]):
             raise HTTPException(404, "记录不存在或无权访问")
         db.expunge(item)
         return item
@@ -96,7 +176,7 @@ def visible_task_ids():
         return set()
     with SessionLocal() as db:
         q = db.query(Resource.id)
-        if actor["role"] != "admin":
+        if not is_admin_role(actor):
             q = q.filter(Resource.owner_id == actor["id"])
         return {row[0] for row in q.all()}
 

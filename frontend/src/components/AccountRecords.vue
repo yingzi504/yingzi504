@@ -3,6 +3,8 @@
     <div class="filters">
       <el-input v-if="admin" v-model="userFilter" placeholder="用户 ID（可选）" clearable style="width:180px" @keyup.enter="reload" />
       <el-select v-model="status" placeholder="全部状态" clearable style="width:150px" @change="reload"><el-option label="已完成" value="completed"/><el-option label="失败" value="failed"/><el-option label="待补充信息" value="awaiting_input"/><el-option label="处理中" value="processing"/></el-select>
+      <el-select v-model="kind" placeholder="全部类型" clearable style="width:130px" @change="reload"><el-option label="CV" value="cv"/><el-option label="JD" value="jd"/><el-option v-if="admin" label="历史文件" value="legacy"/></el-select>
+      <el-input v-model="department" placeholder="部门代码" clearable style="width:140px" @keyup.enter="reload" />
       <el-button @click="reload">刷新</el-button><span class="count">共 {{ total }} 条记录</span>
     </div>
     <el-table v-loading="busy" :data="rows" height="100%" empty-text="暂无处理记录，完成文档处理后可在此调取文件。">
@@ -21,11 +23,11 @@
 import { ref, onMounted } from 'vue'
 import http from '@/api/http'
 defineProps<{admin?:boolean}>()
-const rows=ref<any[]>([]), total=ref(0), page=ref(1), busy=ref(false), status=ref(''), userFilter=ref('')
+const rows=ref<any[]>([]), total=ref(0), page=ref(1), busy=ref(false), status=ref(''), userFilter=ref(''), kind=ref(''), department=ref('')
 const showDetails=ref(false), selected=ref<any>(null), downloading=ref('')
 const labels:Record<string,string>={pending:'排队中',processing:'处理中',awaiting_input:'待补充信息',completed:'已完成',failed:'失败',interrupted:'服务重启中断'}
 function formatTime(value:string){return new Date(value+'Z').toLocaleString()}
-async function load(){busy.value=true;try{const res:any=await http.get('/records',{params:{page:page.value,status:status.value || undefined,user_id:userFilter.value || undefined}});rows.value=res.data;total.value=res.total}catch{}finally{busy.value=false}}
+async function load(){busy.value=true;try{const res:any=await http.get('/records',{params:{page:page.value,status:status.value||undefined,user_id:userFilter.value||undefined,kind:kind.value||undefined,department:department.value||undefined}});rows.value=res.data;total.value=res.total}catch{}finally{busy.value=false}}
 function reload(){page.value=1;void load()}
 async function details(id:string){try{const res:any=await http.get(`/records/${id}`);selected.value=res.data;showDetails.value=true}catch{}}
 async function download(id:string,file:any){downloading.value=id+file.format;try{const blob:Blob=await http.get(`/records/${id}/download`,{params:{format:file.format},responseType:'blob'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch{}finally{downloading.value=''}}

@@ -1,3 +1,3 @@
-<template><section class="records-page"><AccountRecords /></section></template>
-<script setup lang="ts">import AccountRecords from '@/components/AccountRecords.vue'</script>
-<style scoped>.records-page{height:100%;min-height:0;box-sizing:border-box;background:white;border:1px solid #e8e8ee;border-radius:10px;padding:20px;overflow:auto}</style>
+<template><section class="records-page"><el-tabs v-model="tab" class="records-tabs"><el-tab-pane label="处理记录" name="files"><AccountRecords /></el-tab-pane><el-tab-pane label="我的操作" name="audit" lazy><AccountAudit /></el-tab-pane></el-tabs></section></template>
+<script setup lang="ts">import { ref } from 'vue'; import AccountRecords from '@/components/AccountRecords.vue'; import AccountAudit from '@/components/AccountAudit.vue'; const tab=ref('files')</script>
+<style scoped>.records-page{height:100%;min-height:0;box-sizing:border-box;background:white;border:1px solid #e8e8ee;border-radius:10px;padding:20px;overflow:auto}.records-tabs{height:100%;display:flex;flex-direction:column}.records-tabs :deep(.el-tabs__content){flex:1;min-height:0}.records-tabs :deep(.el-tab-pane){height:100%}</style>

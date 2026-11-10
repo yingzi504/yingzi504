@@ -17,8 +17,8 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/CVLibraryView.vue'),
         meta: { title: 'CV Library', description: 'Browse completed CVs by department and target position.' }
       },
-      { path: 'recruitment-tools', name: 'RecruitmentTools', component: () => import('@/views/RecruitmentToolsView.vue') },
-      { path: 'offboarding-tools', name: 'OffboardingTools', component: () => import('@/views/EmptyModuleView.vue') },
+      { path: 'recruitment-tools', name: 'RecruitmentTools', component: () => import('@/views/RecruitmentToolsView.vue'), meta: { adminOnly: true } },
+      { path: 'offboarding-tools', name: 'OffboardingTools', component: () => import('@/views/EmptyModuleView.vue'), meta: { adminOnly: true } },
       { path: 'admin', component: () => import('@/views/AdminView.vue'), meta: { title: '管理后台' } },
       {
         path: 'upload',
@@ -81,7 +81,8 @@ router.beforeEach(async (to) => {
   if (!user) return to.path === '/login' ? true : '/login'
   if (user.must_change_password) return to.path === '/change-password' ? true : '/change-password'
   if (to.path === '/login') return '/upload'
-  if (to.path === '/admin' && user.role !== 'admin') return '/upload'
+  if (to.path === '/admin' && user.role !== 'superadmin' && user.role !== 'admin') return '/upload'
+  if (to.meta.adminOnly && user.role !== 'superadmin' && user.role !== 'admin') return '/upload'
   if (to.path === '/upload' && !canUse('cv') && !canUse('jd')) return '/history'
   const features: Record<string, string> = { '/cv-library': 'cv', '/templates': 'templates', '/jd-library': 'library', '/terminology': 'terminology' }
   const feature = features[to.path]

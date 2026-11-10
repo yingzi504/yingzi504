@@ -14,6 +14,7 @@ class User(Base):
     permissions = Column(Text, nullable=False, default='["cv", "jd", "library", "templates", "terminology"]')
     active = Column(Boolean, nullable=False, default=True)
     must_change_password = Column(Boolean, nullable=False, default=True)
+    auth_version = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_login_at = Column(DateTime)
 
@@ -23,6 +24,7 @@ class LoginSession(Base):
     token_hash = Column(String(64), primary_key=True)
     user_id = Column(Integer, ForeignKey("access_users.id"), index=True, nullable=False)
     expires_at = Column(DateTime, nullable=False)
+    auth_version = Column(Integer, nullable=False, default=1)
 
 
 class AuditEvent(Base):
@@ -30,6 +32,13 @@ class AuditEvent(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, index=True)
     action = Column(String(120), nullable=False)
+    category = Column(String(20), nullable=False, default="", index=True)
+    actor_role = Column(String(20), nullable=False, default="")
+    account_type = Column(String(50), nullable=False, default="")
+    resource_type = Column(String(20), nullable=False, default="", index=True)
+    department = Column(String(50), nullable=False, default="", index=True)
+    target_user_id = Column(Integer, index=True)
+    result = Column(String(20), nullable=False, default="", index=True)
     resource_id = Column(String(120), index=True)
     status_code = Column(Integer, nullable=False)
     ip_address = Column(String(64))
