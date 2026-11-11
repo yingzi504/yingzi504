@@ -74,6 +74,9 @@ class Settings(BaseSettings):
 
     # 应用配置
     environment: str = "development"
+    # 仅供本地开发／自动化测试使用。生产环境会强制关闭，
+    # 即使误将此项设为 true 也不允许未登记账号自动创建。
+    auto_signup_enabled: bool = True
     
     class Config:
         env_file = ".env"
@@ -96,6 +99,11 @@ def ensure_storage_directories(config: Settings = settings) -> None:
 def get_settings() -> Settings:
     """获取配置实例"""
     return settings
+
+
+def is_auto_signup_enabled(config: Settings = settings) -> bool:
+    """Allow password-based account bootstrap only outside production."""
+    return config.environment.strip().lower() not in {"production", "prod"} and config.auto_signup_enabled
 
 
 def configured_cors_origins(config: Settings = settings) -> list[str]:

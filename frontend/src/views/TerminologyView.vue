@@ -66,15 +66,15 @@
           </el-table-column>
           <el-table-column :label="$t('terminology.definition')" min-width="220" show-overflow-tooltip>
             <template #default="{ row }">
-              <span class="definition-text">{{ row.definition }}</span>
+              <span class="definition-text">{{ displayDefinition(row) }}</span>
             </template>
           </el-table-column>
           <el-table-column :label="$t('terminology.aliases')" min-width="140">
             <template #default="{ row }">
               <div class="alias-list">
-                <span v-for="alias in row.aliases.slice(0, 2)" :key="alias" class="alias-chip">{{ alias }}</span>
-                <span v-if="row.aliases.length > 2" class="alias-more">+{{ row.aliases.length - 2 }}</span>
-                <span v-if="row.aliases.length === 0" class="muted">-</span>
+                <span v-for="alias in displayAliases(row).slice(0, 2)" :key="alias" class="alias-chip">{{ alias }}</span>
+                <span v-if="displayAliases(row).length > 2" class="alias-more">+{{ displayAliases(row).length - 2 }}</span>
+                <span v-if="displayAliases(row).length === 0" class="muted">-</span>
               </div>
             </template>
           </el-table-column>
@@ -115,7 +115,7 @@
               {{ term.enabled ? $t('terminology.enabled') : $t('terminology.disabled') }}
             </span>
           </div>
-          <p class="mobile-definition">{{ term.definition }}</p>
+          <p class="mobile-definition">{{ displayDefinition(term) }}</p>
           <div class="mobile-meta">
             <span class="category-label">{{ categoryLabel(term.category) }}</span>
             <span>{{ term.updatedAt }}</span>
@@ -205,8 +205,11 @@ interface TermItem {
   termEn: string
   category: TermCategory
   definition: string
+  definitionEn?: string
   aliases: string[]
+  aliasesEn?: string[]
   usageNote: string
+  usageNoteEn?: string
   enabled: boolean
   updatedAt: string
 }
@@ -221,7 +224,7 @@ interface TermForm {
   enabled: boolean
 }
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const keyword = ref('')
 const categoryFilter = ref('')
 const statusFilter = ref('')
@@ -230,15 +233,18 @@ const editingId = ref<number | null>(null)
 const importInput = ref<HTMLInputElement | null>(null)
 
 const terms = ref<TermItem[]>([
-  { id: 1, termCn: '高级驾驶辅助系统', termEn: 'Advanced Driver Assistance Systems (ADAS)', category: 'automotive', definition: '辅助驾驶相关感知、决策与控制功能的总称。', aliases: ['ADAS', '驾驶辅助系统'], usageNote: '首次出现使用全称及缩写。', enabled: true, updatedAt: '2026-08-21' },
-  { id: 2, termCn: '电子控制单元', termEn: 'Electronic Control Unit (ECU)', category: 'automotive', definition: '车辆中执行特定控制功能的嵌入式控制器。', aliases: ['ECU', '控制器'], usageNote: '避免翻译为 electronic controller。', enabled: true, updatedAt: '2026-08-20' },
-  { id: 3, termCn: '汽车开放系统架构', termEn: 'AUTomotive Open System ARchitecture (AUTOSAR)', category: 'automotive', definition: '汽车软件架构、接口与方法论标准。', aliases: ['AUTOSAR', 'Autosar'], usageNote: '品牌缩写统一写作 AUTOSAR。', enabled: true, updatedAt: '2026-08-20' },
-  { id: 4, termCn: '系统工程师', termEn: 'System Engineer', category: 'position', definition: '负责系统需求、架构、集成和验证的工程岗位。', aliases: ['Systems Engineer'], usageNote: '岗位名称优先使用单数 System Engineer。', enabled: true, updatedAt: '2026-08-19' },
-  { id: 5, termCn: '量产项目', termEn: 'Production Program', category: 'general', definition: '已进入产品化开发及交付阶段的客户项目。', aliases: ['SOP Project', 'Mass Production Project'], usageNote: '根据上下文区分 program 与 project。', enabled: true, updatedAt: '2026-08-18' },
-  { id: 6, termCn: '需求管理', termEn: 'Requirements Management', category: 'skill', definition: '需求捕获、分析、跟踪、变更与验证的全过程管理。', aliases: ['RM'], usageNote: '', enabled: true, updatedAt: '2026-08-18' },
-  { id: 7, termCn: '标定', termEn: 'Calibration', category: 'skill', definition: '通过参数调整使控制系统达到目标性能。', aliases: ['参数标定'], usageNote: '车辆控制语境使用 calibration。', enabled: true, updatedAt: '2026-08-17' },
-  { id: 8, termCn: '软件在环测试', termEn: 'Software-in-the-Loop Testing (SIL)', category: 'skill', definition: '在仿真环境中对软件模型或代码进行闭环测试。', aliases: ['SIL', 'SiL'], usageNote: '统一缩写为 SIL。', enabled: false, updatedAt: '2026-08-15' }
+  { id: 1, termCn: '高级驾驶辅助系统', termEn: 'Advanced Driver Assistance Systems (ADAS)', category: 'automotive', definition: '辅助驾驶相关感知、决策与控制功能的总称。', definitionEn: 'A collective term for perception, decision-making, and control functions used in assisted driving.', aliases: ['ADAS', '驾驶辅助系统'], aliasesEn: ['ADAS', 'Driver Assistance System'], usageNote: '首次出现使用全称及缩写。', usageNoteEn: 'Use the full name followed by the abbreviation on first mention.', enabled: true, updatedAt: '2026-08-21' },
+  { id: 2, termCn: '电子控制单元', termEn: 'Electronic Control Unit (ECU)', category: 'automotive', definition: '车辆中执行特定控制功能的嵌入式控制器。', definitionEn: 'An embedded controller that performs a specific control function in a vehicle.', aliases: ['ECU', '控制器'], aliasesEn: ['ECU', 'Control Unit'], usageNote: '避免翻译为 electronic controller。', usageNoteEn: 'Avoid the translation “electronic controller.”', enabled: true, updatedAt: '2026-08-20' },
+  { id: 3, termCn: '汽车开放系统架构', termEn: 'AUTomotive Open System ARchitecture (AUTOSAR)', category: 'automotive', definition: '汽车软件架构、接口与方法论标准。', definitionEn: 'A standard for automotive software architecture, interfaces, and methodology.', aliases: ['AUTOSAR', 'Autosar'], aliasesEn: ['AUTOSAR', 'Autosar'], usageNote: '品牌缩写统一写作 AUTOSAR。', usageNoteEn: 'Always write the brand abbreviation as AUTOSAR.', enabled: true, updatedAt: '2026-08-20' },
+  { id: 4, termCn: '系统工程师', termEn: 'System Engineer', category: 'position', definition: '负责系统需求、架构、集成和验证的工程岗位。', definitionEn: 'An engineering role responsible for system requirements, architecture, integration, and verification.', aliases: ['Systems Engineer'], aliasesEn: ['Systems Engineer'], usageNote: '岗位名称优先使用单数 System Engineer。', usageNoteEn: 'Prefer the singular title “System Engineer.”', enabled: true, updatedAt: '2026-08-19' },
+  { id: 5, termCn: '量产项目', termEn: 'Production Program', category: 'general', definition: '已进入产品化开发及交付阶段的客户项目。', definitionEn: 'A customer program that has entered product development and delivery.', aliases: ['SOP Project', 'Mass Production Project'], aliasesEn: ['SOP Project', 'Mass Production Project'], usageNote: '根据上下文区分 program 与 project。', usageNoteEn: 'Choose “program” or “project” according to context.', enabled: true, updatedAt: '2026-08-18' },
+  { id: 6, termCn: '需求管理', termEn: 'Requirements Management', category: 'skill', definition: '需求捕获、分析、跟踪、变更与验证的全过程管理。', definitionEn: 'End-to-end management of requirements capture, analysis, traceability, change, and verification.', aliases: ['RM'], aliasesEn: ['RM'], usageNote: '', usageNoteEn: '', enabled: true, updatedAt: '2026-08-18' },
+  { id: 7, termCn: '标定', termEn: 'Calibration', category: 'skill', definition: '通过参数调整使控制系统达到目标性能。', definitionEn: 'Adjusting parameters so a control system achieves its target performance.', aliases: ['参数标定'], aliasesEn: ['Parameter Calibration'], usageNote: '车辆控制语境使用 calibration。', usageNoteEn: 'Use “calibration” in vehicle-control contexts.', enabled: true, updatedAt: '2026-08-17' },
+  { id: 8, termCn: '软件在环测试', termEn: 'Software-in-the-Loop Testing (SIL)', category: 'skill', definition: '在仿真环境中对软件模型或代码进行闭环测试。', definitionEn: 'Closed-loop testing of software models or code in a simulated environment.', aliases: ['SIL', 'SiL'], aliasesEn: ['SIL', 'SiL'], usageNote: '统一缩写为 SIL。', usageNoteEn: 'Standardize the abbreviation as SIL.', enabled: false, updatedAt: '2026-08-15' }
 ])
+
+const displayDefinition = (term: TermItem) => locale.value === 'en' ? (term.definitionEn || term.definition) : term.definition
+const displayAliases = (term: TermItem) => locale.value === 'en' ? (term.aliasesEn || term.aliases) : term.aliases
 
 const createEmptyForm = (): TermForm => ({
   termCn: '',

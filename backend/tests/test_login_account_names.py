@@ -6,8 +6,13 @@ from app.main import app
 from test_access_control import context
 
 
-@pytest.mark.parametrize('name', ['testuser', '测试用户', 'someone@company.com'])
-def test_named_account_initial_password(context, name):
+@pytest.mark.parametrize(('name', 'must_change_password'), [
+    ('testuser', False),
+    ('TeStUser', False),
+    ('测试用户', True),
+    ('someone@company.com', True),
+])
+def test_named_account_initial_password(context, name, must_change_password):
     sessions, _ = context
     with sessions() as db:
         service.create_user(db, name)
@@ -16,6 +21,7 @@ def test_named_account_initial_password(context, name):
     result = client.post('/api/v1/auth/login', json={'email':name, 'password':'123456'})
     assert result.status_code == 200
     assert result.json()['data']['role'] == 'member'
+    assert result.json()['data']['must_change_password'] is must_change_password
     assert client.post('/api/v1/auth/login', json={'email':'unregistered', 'password':'wrong'}).status_code == 401
 
 

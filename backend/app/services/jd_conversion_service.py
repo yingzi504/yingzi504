@@ -10,6 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from fastapi import HTTPException
+
 from app.core.config import settings
 from app.schemas.jd_conversion import (
     BilingualItems,
@@ -205,6 +207,10 @@ same item order and meaning. Do not include markdown, headings, bullets, or the 
                 return
 
             await cls._generate_output(task)
+        except HTTPException as exc:
+            task.status = "failed"
+            task.error_message = LLMService.public_error_message(exc)
+            task.updated_at = datetime.utcnow()
         except Exception as exc:
             task.status = "failed"
             task.error_message = str(exc)

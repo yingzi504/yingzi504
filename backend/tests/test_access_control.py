@@ -26,7 +26,9 @@ def context(monkeypatch, tmp_path):
     monkeypatch.setattr('app.main.import_legacy_outputs', lambda: None)
     with sessions() as db:
         for email, role in [('admin@company.test', 'admin'), ('alice@company.test', 'member'), ('bob@company.test', 'member')]:
-            service.create_user(db, email, role)
+            # These fixtures exercise the forced-change authorization boundary;
+            # opt in explicitly despite using the reserved test-account naming.
+            service.create_user(db, email, role, must_change_password=True)
     yield sessions, tmp_path
     engine.dispose()
 
@@ -224,7 +226,7 @@ def test_auth_version_invalidates_stale_session_even_if_session_row_remains(cont
 def test_superadmin_live_login_count_and_admin_grants(context):
     sessions, _ = context
     with sessions() as db:
-        service.create_user(db, 'root@company.test', role='superadmin')
+        service.create_user(db, 'root@company.test', role='superadmin', must_change_password=True)
     root = signed_in('root@company.test')
     admin = signed_in('admin@company.test')
     bob = signed_in('bob@company.test')

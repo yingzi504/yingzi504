@@ -29,6 +29,55 @@ logger = logging.getLogger(__name__)
 
 class LLMService:
     """LLM调用服务"""
+
+    ERROR_CODE_HEADER = "X-LLM-Error-Code"
+    PUBLIC_ERROR_MESSAGES = {
+        "insufficient_balance": "模型服务余额不足，请联系管理员充值或切换模型后重试",
+        "authentication_failed": "模型服务认证失败，请联系管理员检查 API 密钥",
+        "rate_limited": "模型服务请求过于频繁，请稍后重试",
+        "connection_failed": "模型服务暂时无法连接，请稍后重试",
+        "invalid_response": "模型返回格式异常，请重新处理；如持续失败请联系管理员",
+        "service_unavailable": "模型服务暂时不可用，请稍后重试或联系管理员",
+    }
+
+    @staticmethod
+    def _classify_provider_error(exc: Exception) -> tuple[str, int, bool]:
+        """Return a stable public category without exposing provider internals."""
+        message = str(exc).lower()
+        if any(token in message for token in (
+            "insufficient balance", "insufficient_balance", "余额不足",
+            "insufficient quota", "billing hard limit",
+        )):
+            return "insufficient_balance", 503, False
+        if any(token in message for token in (
+            "invalid api key", "incorrect api key", "authentication",
+            "unauthorized", "invalid credential", "permission denied",
+        )):
+            return "authentication_failed", 503, False
+        if any(token in message for token in (
+            "rate limit", "too many requests", "ratelimit",
+        )):
+            return "rate_limited", 503, True
+        if any(token in message for token in (
+            "timeout", "timed out", "connection error", "connection refused",
+            "network error", "service unavailable", "bad gateway",
+        )):
+            return "connection_failed", 503, True
+        return "service_unavailable", 500, False
+
+    @staticmethod
+    def public_error_message(exc: Exception) -> str:
+        """Extract only messages created by this service for task persistence."""
+        if isinstance(exc, HTTPException):
+            code = (exc.headers or {}).get(LLMService.ERROR_CODE_HEADER)
+            if code in LLMService.PUBLIC_ERROR_MESSAGES:
+                return LLMService.PUBLIC_ERROR_MESSAGES[code]
+        return LLMService.PUBLIC_ERROR_MESSAGES["service_unavailable"]
+
+    @staticmethod
+    def _is_retryable_http_error(exc: HTTPException) -> bool:
+        code = (exc.headers or {}).get(LLMService.ERROR_CODE_HEADER)
+        return code in {"rate_limited", "connection_failed"}
     
     @staticmethod
     async def call_llm(
@@ -107,11 +156,19 @@ class LLMService:
             # return mock_response
             
         except Exception as e:
-            error_detail = f"LLM调用失败: {str(e)}"
-            logger.exception(
-                "LLM call failed; error_type=%s", type(e).__name__
+            error_code, status_code, _ = LLMService._classify_provider_error(e)
+            log = logger.warning if error_code != "service_unavailable" else logger.exception
+            log(
+                "LLM provider request failed; category=%s error_type=%s model=%s",
+                error_code,
+                type(e).__name__,
+                use_model if 'use_model' in locals() else None,
             )
-            raise HTTPException(status_code=500, detail=error_detail)
+            raise HTTPException(
+                status_code=status_code,
+                detail=LLMService.PUBLIC_ERROR_MESSAGES[error_code],
+                headers={LLMService.ERROR_CODE_HEADER: error_code},
+            ) from e
     
     @staticmethod
     async def call_llm_json(
@@ -181,7 +238,7 @@ class LLMService:
                     retry_count + 1,
                     exc.status_code,
                 )
-                if attempt >= retry_count:
+                if not LLMService._is_retryable_http_error(exc) or attempt >= retry_count:
                     raise
             except (json.JSONDecodeError, TypeError, ValueError, AttributeError) as exc:
                 last_error = exc
@@ -195,16 +252,16 @@ class LLMService:
             if attempt < retry_count:
                 await asyncio.sleep(0.25 * (attempt + 1))
 
-        error_detail = (
-            "LLM JSON解析失败: "
-            f"{type(last_error).__name__}: {last_error}"
-        )
         logger.error(
             "LLM JSON parsing exhausted retries; attempts=%d error_type=%s",
             retry_count + 1,
             type(last_error).__name__ if last_error else "unknown",
         )
-        raise HTTPException(status_code=500, detail=error_detail)
+        raise HTTPException(
+            status_code=500,
+            detail="模型返回格式异常，请重新处理；如持续失败请联系管理员",
+            headers={LLMService.ERROR_CODE_HEADER: "invalid_response"},
+        )
     
     @staticmethod
     def _extract_json(text: str) -> str:

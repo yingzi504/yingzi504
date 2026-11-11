@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { i18n } from '@/locales'
 import { uploadResume, submitProcessTask, getTaskStatus } from '@/api/resume'
 import {
   createJDConversion,
@@ -93,7 +94,7 @@ export const useProcessingStore = defineStore('processing', () => {
 
   /** 提交处理任务 */
   async function submitTask() {
-    if (!uploadedFile.value) throw new Error('请先上传简历文件')
+    if (!uploadedFile.value) throw new Error(i18n.global.t('message.pleaseUploadFirst'))
 
     stopPolling()
     activeTaskMode.value = processingMode.value
@@ -163,7 +164,7 @@ export const useProcessingStore = defineStore('processing', () => {
               position: res.data.result.position,
               experience: res.data.result.total_exp,
               company: res.data.result.current_company,
-              language: outputLanguage.value === 'en' ? 'English' : '中文',
+              language: outputLanguage.value === 'en' ? i18n.global.t('upload.english') : i18n.global.t('upload.chinese'),
               matchRate: res.data.result.match_rate,
               matchLevel: res.data.result.match_level,
               skills: res.data.result.skills

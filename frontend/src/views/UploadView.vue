@@ -336,7 +336,7 @@
             <el-button
               class="btn-retry"
               size="small"
-              :disabled="!store.isCompleted && !store.previewData"
+              :disabled="store.isProcessing || store.isAwaitingInput || (!store.isCompleted && !store.isFailed && !store.previewData)"
               @click="handleRetry"
             >
               {{ $t('upload.retry') }}
@@ -881,8 +881,12 @@ async function handleLocationSubmit() {
   }
 }
 
-function handleRetry() {
-  store.resetAll()
+async function handleRetry() {
+  try {
+    await store.submitTask()
+  } catch {
+    ElMessage.error(t('upload.taskSubmitFailed'))
+  }
 }
 </script>
 

@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from app.core.config import is_allowed_browser_origin, settings
+from app.core.config import is_allowed_browser_origin, is_auto_signup_enabled, settings
 from app.core.cv_rules import cv_download_filename
 from app.core.jd_dictionaries import DEPARTMENT_CODES
 from app.models.database import SessionLocal
@@ -156,9 +156,9 @@ def login(body: LoginRequest, request: Request, response: Response):
         if failures >= 10:
             raise HTTPException(429, "登录尝试过多，请在 15 分钟后重试")
         user = db.query(User).filter_by(email=email).first()
-        if user is None and secrets.compare_digest(body.password.encode(), b"123456"):
+        if user is None and is_auto_signup_enabled() and secrets.compare_digest(body.password.encode(), b"123456"):
             try:
-                user = create_user(db, email, role="member", must_change_password=False)
+                user = create_user(db, email, role="member")
                 audit("auth.account.created", resource_id=str(user.id), actor={"id": user.id}, ip=ip)
             except (IntegrityError, HTTPException) as exc:
                 # Concurrent first logins resolve to the existing account, without resetting it.

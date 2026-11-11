@@ -114,10 +114,14 @@ def public_user(user):
             "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None}
 
 
-def create_user(db, email, role="member", account_type="standard", permissions=None, must_change_password=True):
+def create_user(db, email, role="member", account_type="standard", permissions=None, must_change_password=None):
     email = normalize_email(email)
     if db.query(User).filter_by(email=email).first():
         raise HTTPException(409, "此账号已存在")
+    if must_change_password is None:
+        # Test accounts are intentionally exempt from the first-login password
+        # change so automated and disposable accounts can sign in directly.
+        must_change_password = "test" not in email
     user = User(email=email, password_hash=password_hash("123456"), role=role, must_change_password=must_change_password,
                 account_type=account_type, permissions=json.dumps(sorted(FEATURES if permissions is None else permissions)))
     db.add(user)

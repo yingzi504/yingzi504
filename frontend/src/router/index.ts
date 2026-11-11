@@ -19,7 +19,7 @@ const routes: RouteRecordRaw[] = [
       },
       { path: 'recruitment-tools', name: 'RecruitmentTools', component: () => import('@/views/RecruitmentToolsView.vue'), meta: { adminOnly: true } },
       { path: 'offboarding-tools', name: 'OffboardingTools', component: () => import('@/views/EmptyModuleView.vue'), meta: { adminOnly: true } },
-      { path: 'admin', component: () => import('@/views/AdminView.vue'), meta: { title: '管理后台' } },
+      { path: 'admin', component: () => import('@/views/AdminView.vue'), meta: { titleKey: 'nav.admin' } },
       {
         path: 'upload',
         name: 'Upload',

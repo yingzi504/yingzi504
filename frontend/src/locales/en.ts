@@ -11,8 +11,10 @@ export default {
     offboardingTools: 'Offboarding Tools',
     history: 'History',
     templates: 'Templates',
-    jdLibrary: 'JD Library'
+    jdLibrary: 'JD Library',
+    admin: 'Admin Console'
   },
+  layout: { mainNavigation: 'Main navigation', changePassword: 'Change password', signOut: 'Sign out', superadmin: 'Super administrator', administrator: 'Administrator', member: 'Member', accountMenu: 'Account menu' },
   upload: {
     genderTitle: 'Confirm candidate gender',
     genderDescription: 'The resume does not state a clear, consistent gender. Select the candidate gender for the filename and titles in the generated resume.',
@@ -183,7 +185,9 @@ export default {
     view: 'View',
     retry: '🔄 Retry',
     empty: 'No processing records',
-    total: 'Total {count}'
+    total: 'Total {count}',
+    downloadMessage: 'Download: {id}',
+    viewMessage: 'View details: {id}'
   },
   templates: {
     totalCount: 'Total Templates',
@@ -220,7 +224,9 @@ export default {
     updateFailed: 'Update failed',
     createSuccess: 'Template created successfully',
     createFailed: 'Create failed',
-    updatedAt: 'Updated {time}'
+    updatedAt: 'Updated {time}',
+    previewMessage: 'Preview: {name}',
+    downloadMessage: 'Download: {name}'
   },
   jdLibrary: {
     totalCount: 'Total JDs',
@@ -290,9 +296,60 @@ export default {
   },
   common: {
     networkError: 'Network request failed',
+    requestFailed: 'Request failed. Please try again.',
     pleaseUploadFirst: 'Please upload a resume file first',
     uploadSuccess: 'File uploaded successfully',
     uploadFailed: 'File upload failed'
+  },
+  apiErrors: {
+    signInRequired: 'Please sign in first', changePasswordRequired: 'Change your initial password first', adminRequired: 'Administrator access is required',
+    superadminRequired: 'Super administrator access is required', invalidCredentials: 'The account or password is incorrect, or the account is disabled',
+    tooManyAttempts: 'Too many sign-in attempts. Try again in 15 minutes.', currentPasswordIncorrect: 'The current password is incorrect', passwordMustDiffer: 'The new password must differ from the current password',
+    accountExists: 'This account already exists', accountNotFound: 'Account not found', recordUnavailable: 'The record does not exist or you do not have access', originRejected: 'Requests from this site are not allowed',
+    llmInsufficientBalance: 'The AI service has insufficient balance. Contact an administrator to add credit or switch models, then retry.', llmAuthenticationFailed: 'AI service authentication failed. Contact an administrator to check the API key.', llmRateLimited: 'The AI service is receiving too many requests. Please retry shortly.', llmConnectionFailed: 'The AI service is temporarily unreachable. Please retry shortly.', llmInvalidResponse: 'The AI service returned an invalid response. Retry, or contact an administrator if this continues.', llmUnavailable: 'The AI service is temporarily unavailable. Retry later or contact an administrator.'
+  },
+  login: {
+    workspaceAria: 'HR document workspace', eyebrow: 'Talent Document Workspace', headline: 'Focus on people.\nKeep every document organized.',
+    description: 'Process CVs and JDs in one workspace,\nmanage generated files, and review every activity.', documentLabel: 'Document processing · Consistent output · Traceable activity',
+    security: 'Account Security', welcome: 'Welcome', setPassword: 'Set your new password', signInTitle: 'Sign in to the workspace',
+    firstChangeIntro: 'Change the initial password on first sign-in. The new password must contain at least 8 characters.', changeIntro: 'Enter your current password and set a new password of at least 8 characters.', signInIntro: 'Enter your account name and password.',
+    sessionChanged: 'Your account permissions changed. Sign in again.', account: 'Account', accountPlaceholder: 'Enter an account name or company email', password: 'Password', passwordPlaceholder: 'Enter your password',
+    initialPasswordHelp: 'The initial password is 123456. Production accounts must be created by an administrator and must change it on first sign-in; test-named accounts are exempt.',
+    currentPassword: 'Current password', newPassword: 'New password', confirmPassword: 'Confirm new password', passwordMismatch: 'The two new passwords do not match', submitFailed: 'Sign-in or save failed. Check your entries and try again.',
+    saveAndEnter: 'Save password and continue', signIn: 'Sign in', signOut: 'Sign out', contactAdmin: 'Contact an administrator if you cannot sign in.'
+  },
+  records: {
+    processingRecords: 'Processing Records', myActivity: 'My Activity', userIdOptional: 'User ID (optional)', allStatuses: 'All statuses', allTypes: 'All types', departmentCode: 'Department code', refresh: 'Refresh', total: '{count} records',
+    completed: 'Completed', failed: 'Failed', awaiting: 'Input required', processing: 'Processing', legacy: 'Legacy file', empty: 'No processing records. Completed document files will be available here.',
+    originalFile: 'Source File / Task', owner: 'Owner', preAccountFile: 'File created before accounts were enabled', type: 'Type', status: 'Status', recordedAt: 'Recorded', filesAndDetails: 'Files and Details', details: 'Details',
+    dialogTitle: 'Processing Record', taskId: 'Task ID', file: 'File', updatedAt: 'Updated', currentStep: 'Current step: {step}', processingNote: 'Processing note: {message}',
+    pending: 'Queued', interrupted: 'Interrupted by service restart'
+  },
+  audit: {
+    userId: 'User ID', allCategories: 'All categories', allResults: 'All results', success: 'Success', failed: 'Failed', actionKeyword: 'Action keyword', queryRefresh: 'Search / Refresh', accountType: 'Account type', departmentCode: 'Department code', resourceType: 'Resource type', startTime: 'Start time', endTime: 'End time', total: '{count} total', summarySuccess: '{count} successful', summaryFailed: '{count} failed',
+    empty: 'No matching activity', time: 'Time', actor: 'Account', signedOutSystem: 'Signed out / System', category: 'Category', action: 'Action', resource: 'Resource', department: 'Department', relatedRecord: 'Related record', result: 'Result', maskedIp: 'Source IP (masked)',
+    categories: { auth: 'Sign-in & Authentication', account: 'Accounts & Permissions', cv: 'CV Processing', jd: 'JD Processing', file: 'File Downloads', library: 'Libraries & Resources', admin: 'Admin Queries', system: 'Other System Activity' }
+  },
+  admin: {
+    users: 'User Management', audit: 'Activity Log', files: 'Tasks & Files', searchAccount: 'Search accounts', search: 'Search', createAccount: 'Create account', noAccounts: 'No accounts', account: 'Account', identityType: 'Role / Account type', status: 'Status', enabled: 'Enabled', disabled: 'Disabled', tasks: 'Tasks', operations: 'Activity', lastLogin: 'Last sign-in', actions: 'Actions',
+    superadmin: 'Super administrator', administrator: 'Administrator', member: 'Member', grantAdmin: 'Grant admin', revokeAdmin: 'Revoke admin', permissions: 'Permissions', resetPassword: 'Reset password', records: 'Records', neverSignedIn: 'Never signed in',
+    editDialog: 'Account & Feature Permissions', createDialog: 'Create Account', accountPlaceholder: 'Account name or company email', identity: 'Role', regularUser: 'Member', accountType: 'Account type', accountTypePlaceholder: 'For example: standard, hr, trial', availableFeatures: 'Available features', adminAllFeatures: 'Administrators can use all features.', accountStatus: 'Account status', initialPasswordHelp: 'The initial password is 123456 and must be changed on first sign-in; test-named accounts are exempt.', cancel: 'Cancel', save: 'Save',
+    featureCv: 'CV Processing', featureJd: 'JD Processing', featureLibrary: 'JD Library', featureTemplates: 'Template Management', featureTerminology: 'Terminology', statUsers: 'Total Accounts', statActive: 'Active Accounts', statLoggedIn: 'Signed In Now', statTasks: 'Processing Tasks', statOperations: 'Activity Records',
+    fillRequired: 'Enter an account and account type', saved: 'Account saved', resetConfirm: 'Reset {email}\'s password to 123456 and sign out all sessions?', resetDone: 'Password reset. It must be changed at the next sign-in.',
+    grantConfirm: 'Grant administrator access to {email}? Their current sessions will end and they must sign in again.', grantDone: 'Administrator access granted', revokeConfirm: 'Revoke administrator access from {email}? Their current sessions will end.', revokeDone: 'Administrator access revoked', confirmReset: 'Reset', confirmGrant: 'Grant', confirmRevoke: 'Revoke'
+  },
+  recruitment: {
+    workspaceAria: 'Recruitment tools workspace', salaryTab: 'Salary Plans', socialTab: 'Contributions', ratesTab: 'Hourly / Daily Rate', rulesTab: 'Fixed Rules', candidateInfo: 'Candidate Info', instructions: 'Instructions', loadExample: 'Load Source Example', addQuote: 'Add Quote',
+    statusHint: 'White fields are editable · Gray fields are fixed or calculated · Inputs are cleared when this page refreshes', sourceExample: 'Source example', clearExample: 'Clear example', contextTitle: 'Candidate Information (optional)', candidateCDD: 'Candidate CDD', candidatePlaceholder: 'Name or reference', ownerPE: 'Owner PE', ownerPlaceholder: 'Owner', positionTitle: 'Position Title', positionPlaceholder: 'Proposed position', onboardDate: 'Expected Start Date',
+    notesTitle: 'Instructions and Calculation Basis', notesIntro: 'Calculations follow the Recruitment Tools sheet in Salary Calculation.xlsx. No policy effective date was provided. Inputs remain only on this page and are cleared when you leave or refresh. Each example quote now uses its own contribution base, so results may differ from the source sheet where all quotes shared a CNY 20,000 base.', annualPackageTitle: 'Candidate Total Package', annualPackageFormula: 'Monthly salary × 12 + onsite allowance + annual bonus + project bonus + yearly benefits + package supplemental housing fund. Every item except monthly salary is annual.', increaseTitle: 'Increase', increaseFormulaLong: 'ROUND((quoted package − current package) ÷ current package, 2), preserving the source rule that rounds to two decimals before displaying a percentage.', rateFormulaTitle: 'Hourly / Daily Rate', rateFormulaLong: '(Package − Shanghai supplemental fund already included in package + employer monthly contributions × 12 + optional overhead) ÷ 1,880. Daily Rate is the unrounded Hourly Rate × 8; displayed values use two decimals.', benefitsTitle: 'Benefits and Supplemental Housing Fund', benefitsLong: 'White fields are editable. The source benefit example totals CNY 5,800. Benefit names, gender-related rules, and sales phone allowances were not provided, so they are not allocated automatically. The Shanghai package supplemental fund example is monthly salary × 8% × 12 and must be reviewed when the city changes.', linkageTitle: 'Linkage Difference from the Source', linkageLong: 'Each quote uses its own monthly salary for contributions instead of sharing the B3:B7 salary input. Existing employees can enter the prior-year average monthly salary.', correctionsTitle: 'Source Corrections and Preserved Rules', correctionsLong: 'Beijing C26:E26 originally referenced Hefei AM5 and now uses the corresponding Beijing cost (AM4), as confirmed. The Shanghai AL3 doubling and duplicate package inclusion were removed; the supplemental amount already disclosed in the package is deducted before adding the actual employer payment once.',
+    salaryTitle: 'Current Salary and Quotes', salaryDesc: 'Enter monthly salary in CNY per month and all other amounts in CNY per year. Enter 0 when an item does not apply; blank is not treated as zero.', quoteCount: '{count} quotes · CNY', compensationItem: 'Compensation Item', currentSalary: 'Current Salary', baseline: 'Increase baseline', nameAria: '{name} name', actionAria: '{name} actions', copyQuote: 'Copy quote', removeQuote: 'Remove quote', payLocation: 'Contribution Location', linkedByQuote: 'Linked separately for each quote', currentCompareOnly: 'Current salary is used only for package comparison', locationAria: '{name} contribution location', fieldInfo: '{field} information', fillPlaceholder: 'Required', monthlyTimesTwo: 'Monthly salary × 2', fixedReadonly: 'Fixed and read-only', planNotes: 'Plan Notes', planNotesPlaceholder: 'Negotiation notes (optional)', notesAria: '{name} notes', packageUnit: 'Total Package · CNY / year', packageIncrease: 'Package Increase', increaseFormula: 'Source rule: ROUND(increase, 2)', baselineValue: 'Baseline', inputStatus: 'Input Status', missingCount: '{count} fields missing', packageCalculated: 'Package calculated', packageFoot: 'Total Package is the amount shown to the candidate in the source sheet. It includes entered benefits and supplemental housing fund and is not take-home income. No increase is calculated when the current package is blank or zero.',
+    socialTitle: 'Contribution Amount Review', socialDesc: 'Select a quote to review the base, rate, and monthly amount for every contribution at that location.', socialQuoteAria: 'Quote for contribution review', location: 'Location', salarySource: 'Contribution salary source', newEmployeeSalary: 'New employee: quoted monthly salary', existingEmployeeSalary: 'Existing employee: prior-year average monthly salary', quotedSalaryLinked: 'Quoted monthly salary (linked)', priorYearAverage: 'Prior-year average monthly salary', employeeMonthly: 'Employee per month', employerMonthly: 'Employer per month', combinedMonthly: 'Combined per month', basesNote: '{city} social insurance base {socialMin}–{socialMax}; housing fund base {housingMin}–{housingMax} CNY/month. Rates and limits are read-only.', fillFirst: 'Enter {field} first. Contribution amounts will then be calculated automatically.', contributionItem: 'Contribution', contributionBase: 'Base', employeeRate: 'Employee Rate', employeeAmount: 'Employee / Month', employerRate: 'Employer Rate', employerAmount: 'Employer / Month', shWarning: 'Shanghai supplemental housing fund is de-duplicated: the employer pays 8% of the housing base, rounded to an integer, once. Employer cost first removes the supplemental amount already included in the package, then adds the actual employer payment; the standard housing fund remains 7%.', roundingFoot: 'Employee pension, medical, and unemployment amounts round up to one decimal. Corresponding employer items use two decimals; housing fund uses integers. Items absent from the source sheet contribute zero to totals, which does not confirm current policy.',
+    ratesTitle: 'Hourly / Daily Rate by Work Location', ratesDesc: 'The package is de-duplicated for supplemental housing fund, employer annual contributions are added, and the result is divided by fixed working hours for internal HR costing.', costUnit: 'Cost unit', compareLocations: 'Compare work locations', fixedCaption: '1,880 hours/year · 8 hours/day · CNY 169,200 overhead/year', compactPolicy: 'Beijing uses local cost · Shanghai supplemental fund is de-duplicated', viewBasis: 'View basis', selectLocation: 'Select at least one work location to compare.', workLocation: 'Work Location', packageShort: 'Package {amount}', perHour: 'CNY / hour', perDay: 'CNY / day', excludingOverhead: 'Excluding overhead', includingOverhead: 'Including overhead', employerMonthlyShort: 'Employer monthly {amount}', packageDeduction: 'Package deduction {amount} / year', ratesFoot: 'A dash appears when a package component or contribution salary is missing. All cities compare the same manually entered package; changing city does not adjust the package supplemental fund or benefits automatically, so review the salary plan first.',
+    rulesTitle: 'Fixed Source Rules', rulesDesc: 'Gray areas are read-only. The source is the Recruitment Tools sheet in Salary Calculation.xlsx.', salaryMonths: 'Salary Months', twelveMonths: '12 months', quoteBonus: 'Quoted Annual Bonus', currentEditable: 'C15:E15; current salary is editable', annualHours: 'Annual Hours', hours1880: '1,880 hours', annualOverhead: 'Annual Overhead', yuan169200: 'CNY 169,200', socialRange: 'Social Insurance Base', housingRange: 'Housing Fund Base', housingRates: 'Employee / Employer Housing Rate', source: 'Source', fullFormula: 'View complete formulas and basis', rulesFoot: 'Individual income tax, take-home pay, and policies for more cities were not provided and are not calculated. This page does not save negotiation records or send them to candidates.', loading: 'Verifying administrator access and loading recruitment rules…',
+    rows: { basePay: 'Gross Monthly Salary', months: 'Salary Months', onsite: 'Onsite Allowance', annualBonus: 'Annual Bonus', projectBonus: 'Project Bonus', benefits: 'Yearly Benefits', supplementary: 'Package Supplemental Housing Fund' },
+    units: { basePay: 'Base Pay · CNY / month', months: 'Salary Month', onsite: 'Onsite Allowance · CNY / year', annualBonus: 'Annual Bonus · CNY / year', projectBonus: 'Project Bonus · CNY / year', benefits: 'Yearly Benefits · CNY / year', supplementary: 'Supplementary Housing Fund · CNY / year' },
+    hints: { onsite: 'The source adds this directly to the package. Enter the full annual allowance.', benefits: 'The source example totals CNY 5,800. Gender-related benefits and sales phone allowances require manual review.', supplementary: 'This manually entered package amount is separate from employer contribution details. The Shanghai source example is monthly salary × 8% × 12; review it after changing city.' },
+    cities: { SH: 'Shanghai', BJ: 'Beijing', HF: 'Hefei', SY: 'Shenyang', WH: 'Wuhu' }, contributions: { pension: 'Pension Insurance', medical: 'Medical Insurance', serious: 'Serious Illness Medical', unemployment: 'Unemployment Insurance', maternity: 'Maternity Insurance', injury: 'Work Injury Insurance', housing: 'Housing Fund', supplemental: 'Supplemental Housing Fund' }, notSet: 'Not set', fixedThree: 'Fixed CNY 3', roundedEight: '8% · rounded', defaultCurrent: 'Current Salary', defaultQuote: 'Quote {number}', copySuffix: '{name} Copy'
   },
   terminology: {
     searchPlaceholder: 'Search terms, definitions, or aliases',
@@ -350,6 +407,9 @@ export default {
     historyDesc: 'Filter and browse processing history by status, output language, and content type in the left panel.',
     templatesDesc: 'Manage resume PPT templates and upload new versions.',
     cvLibraryDesc: 'Browse completed CVs by department, then filter and download by target position.',
-    jdLibraryDesc: 'Manage job descriptions — upload, maintain, and browse by category and language.'
+    jdLibraryDesc: 'Manage job descriptions — upload, maintain, and browse by category and language.',
+    recruitmentToolsDesc: 'Compare salary packages, statutory contributions, and internal costs by work location.',
+    offboardingToolsDesc: 'Manage offboarding tools and related workflows.',
+    adminDesc: 'Manage accounts, permissions, activity logs, and archived files.'
   }
 }

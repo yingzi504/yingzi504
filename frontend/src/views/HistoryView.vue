@@ -192,11 +192,11 @@ function handlePageChange(page: number) {
 }
 
 function handleDownload(record: any) {
-  ElMessage.info('下载功能：' + record.id)
+  ElMessage.info(t('history.downloadMessage', { id: record.id }))
 }
 
 function handleView(record: any) {
-  ElMessage.info('查看详情：' + record.id)
+  ElMessage.info(t('history.viewMessage', { id: record.id }))
 }
 
 function handleRetry(_record: any) {

@@ -7,7 +7,7 @@
         <span class="logo-text">{{ $t('app.title') }}</span>
       </div>
       <div class="nav-divider" />
-      <nav class="nav-menu" :aria-label="locale === 'zh-CN' ? '主导航' : 'Main navigation'">
+      <nav class="nav-menu" :aria-label="t('layout.mainNavigation')">
         <router-link
           v-for="item in menuItems"
           :key="item.path"
@@ -67,8 +67,8 @@
             <template #dropdown>
               <el-dropdown-menu class="account-dropdown">
                 <el-dropdown-item disabled><span class="dropdown-account">{{ account?.email }}</span></el-dropdown-item>
-                <el-dropdown-item command="password" divided :icon="Lock">{{ locale === 'zh-CN' ? '修改密码' : 'Change password' }}</el-dropdown-item>
-                <el-dropdown-item command="logout" :icon="SwitchButton">{{ locale === 'zh-CN' ? '退出登录' : 'Sign out' }}</el-dropdown-item>
+                <el-dropdown-item command="password" divided :icon="Lock">{{ t('layout.changePassword') }}</el-dropdown-item>
+                <el-dropdown-item command="logout" :icon="SwitchButton">{{ t('layout.signOut') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -94,11 +94,11 @@ const route = useRoute()
 const router = useRouter()
 const accountInitial = computed(() => Array.from(account.value?.email || 'U')[0].toUpperCase())
 const accountRole = computed(() => account.value?.role === 'superadmin'
-  ? (locale.value === 'zh-CN' ? '超级管理员' : 'Super administrator')
+  ? t('layout.superadmin')
   : account.value?.role === 'admin'
-  ? (locale.value === 'zh-CN' ? '管理员' : 'Administrator')
-  : (locale.value === 'zh-CN' ? '普通用户' : 'Member'))
-const accountMenuLabel = computed(() => `${locale.value === 'zh-CN' ? '账号菜单' : 'Account menu'} · ${account.value?.email || ''}`)
+  ? t('layout.administrator')
+  : t('layout.member'))
+const accountMenuLabel = computed(() => `${t('layout.accountMenu')} · ${account.value?.email || ''}`)
 function handleAccountCommand(command: string) {
   if (command === 'password') void router.push('/change-password')
   if (command === 'logout') void signOut()
@@ -115,7 +115,7 @@ const menuItems = computed(() => [
     { path: '/recruitment-tools', name: t('nav.recruitmentTools'), icon: Briefcase },
     { path: '/offboarding-tools', name: t('nav.offboardingTools'), icon: SwitchButton }
   ] : []),
-  ...(account.value?.role === 'superadmin' || account.value?.role === 'admin' ? [{ path: '/admin', name: '管理后台', icon: UserFilled }] : [])
+  ...(account.value?.role === 'superadmin' || account.value?.role === 'admin' ? [{ path: '/admin', name: t('nav.admin'), icon: UserFilled }] : [])
 ].filter(item => {
   const features: Record<string, string> = { '/cv-library': 'cv', '/templates': 'templates', '/jd-library': 'library', '/terminology': 'terminology' }
   return !features[item.path] || canUse(features[item.path])
@@ -142,6 +142,9 @@ const currentDescription = computed(() => {
     '/cv-library': 'router.cvLibraryDesc',
     '/jd-library': 'router.jdLibraryDesc',
     '/terminology': 'router.terminologyDesc'
+    ,'/recruitment-tools': 'router.recruitmentToolsDesc'
+    ,'/offboarding-tools': 'router.offboardingToolsDesc'
+    ,'/admin': 'router.adminDesc'
   }
   const key = descKeyMap[route.path]
   return key ? t(key) : ''

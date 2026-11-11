@@ -178,7 +178,7 @@ const deptOptions = computed(() => [
   t('jdLibrary.dept5')
 ])
 
-const hotTags = ['HUD产品经理', 'ADAS算法', '自动驾驶', '智能座舱', '嵌入式开发', '项目经理']
+const hotTags = computed(() => [1, 2, 3, 4, 5, 6].map(index => t(`jdLibrary.hotTag${index}`)))
 
 function categoryCount(cat: string): number {
   return store.jds.filter(j => j.category === cat).length

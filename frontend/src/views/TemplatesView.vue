@@ -55,7 +55,7 @@
             <!-- 模板信息 -->
             <div class="template-info">
               <p class="template-name">{{ template.name }}</p>
-              <p class="template-meta">v{{ template.version }} · 更新于 {{ template.updatedAt }}</p>
+              <p class="template-meta">v{{ template.version }} · {{ $t('templates.updatedAt', { time: template.updatedAt }) }}</p>
               <div class="template-tags">
                 <span class="tpl-tag">{{ template.category === 'portrait' ? $t('templates.vertical') : $t('templates.horizontal') }}</span>
                 <span class="tpl-tag lang-tag">{{ template.language }}</span>
@@ -114,11 +114,11 @@ const portraitCount = computed(() => store.templates.filter(t => t.category === 
 const landscapeCount = computed(() => store.templates.filter(t => t.category === 'landscape').length)
 
 function handlePreview(template: TemplateItem) {
-  ElMessage.info('预览功能：' + template.name)
+  ElMessage.info(t('templates.previewMessage', { name: template.name }))
 }
 
 function handleDownload(template: TemplateItem) {
-  ElMessage.info('下载功能：' + template.name)
+  ElMessage.info(t('templates.downloadMessage', { name: template.name }))
 }
 
 async function handleUploadNew(file: File) {

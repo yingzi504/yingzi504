@@ -11,8 +11,10 @@ export default {
     offboardingTools: '离职工具',
     history: '历史记录',
     templates: '模板库',
-    jdLibrary: 'JD库'
+    jdLibrary: 'JD库',
+    admin: '管理后台'
   },
+  layout: { mainNavigation: '主导航', changePassword: '修改密码', signOut: '退出登录', superadmin: '超级管理员', administrator: '管理员', member: '普通用户', accountMenu: '账号菜单' },
   upload: {
     genderTitle: '确认候选人性别',
     genderDescription: '原始简历未提供明确、一致的性别信息。请选择候选人性别，用于文件名和简历称谓。',
@@ -183,7 +185,9 @@ export default {
     view: '查看',
     retry: '🔄 重试',
     empty: '暂无处理记录',
-    total: '共 {count} 条'
+    total: '共 {count} 条',
+    downloadMessage: '下载功能：{id}',
+    viewMessage: '查看详情：{id}'
   },
   templates: {
     totalCount: '模板总数',
@@ -220,7 +224,9 @@ export default {
     updateFailed: '更新失败',
     createSuccess: '新模板创建成功',
     createFailed: '创建失败',
-    updatedAt: '更新于 {time}'
+    updatedAt: '更新于 {time}',
+    previewMessage: '预览功能：{name}',
+    downloadMessage: '下载功能：{name}'
   },
   jdLibrary: {
     totalCount: 'JD 总数',
@@ -290,9 +296,60 @@ export default {
   },
   common: {
     networkError: '网络请求失败',
+    requestFailed: '请求失败，请重试',
     pleaseUploadFirst: '请先上传简历文件',
     uploadSuccess: '文件上传成功',
     uploadFailed: '文件上传失败'
+  },
+  apiErrors: {
+    signInRequired: '请先登录', changePasswordRequired: '请先修改初始密码', adminRequired: '需要管理员权限',
+    superadminRequired: '需要超级管理员权限', invalidCredentials: '账号或密码错误，或账号已停用',
+    tooManyAttempts: '登录尝试过多，请在 15 分钟后重试', currentPasswordIncorrect: '当前密码错误', passwordMustDiffer: '新密码不能与当前密码相同',
+    accountExists: '此账号已存在', accountNotFound: '账号不存在', recordUnavailable: '记录不存在或无权访问', originRejected: '不允许来自此站点的请求',
+    llmInsufficientBalance: '模型服务余额不足，请联系管理员充值或切换模型后重试', llmAuthenticationFailed: '模型服务认证失败，请联系管理员检查 API 密钥', llmRateLimited: '模型服务请求过于频繁，请稍后重试', llmConnectionFailed: '模型服务暂时无法连接，请稍后重试', llmInvalidResponse: '模型返回格式异常，请重新处理；如持续失败请联系管理员', llmUnavailable: '模型服务暂时不可用，请稍后重试或联系管理员'
+  },
+  login: {
+    workspaceAria: 'HR 文档工作台', eyebrow: '人才文档工作台', headline: '专注人才，\n让文档更有条理。',
+    description: '在统一的工作空间内处理 CV 与 JD，\n管理生成文件，查看每一次处理记录。', documentLabel: '文档处理 · 规范输出 · 记录可查',
+    security: '账号安全', welcome: '欢迎使用', setPassword: '设置你的新密码', signInTitle: '登录工作台',
+    firstChangeIntro: '首次登录需要修改初始密码，新密码至少 8 位。', changeIntro: '输入当前密码，并设置至少 8 位的新密码。', signInIntro: '输入账号名称和密码登录。',
+    sessionChanged: '账号权限已变更，请重新登录。', account: '账号', accountPlaceholder: '请输入账号名称（也可填写公司邮箱）', password: '密码', passwordPlaceholder: '请输入密码',
+    initialPasswordHelp: '初始密码为 123456。正式账号需由管理员预先创建；首次登录后需修改密码，账号名含 test 的测试账号除外。',
+    currentPassword: '当前密码', newPassword: '新密码', confirmPassword: '确认新密码', passwordMismatch: '两次输入的新密码不一致', submitFailed: '登录或保存失败，请检查输入后重试。',
+    saveAndEnter: '保存密码并进入', signIn: '登录', signOut: '退出登录', contactAdmin: '账号无法登录时，请联系管理员。'
+  },
+  records: {
+    processingRecords: '处理记录', myActivity: '我的操作', userIdOptional: '用户 ID（可选）', allStatuses: '全部状态', allTypes: '全部类型', departmentCode: '部门代码', refresh: '刷新', total: '共 {count} 条记录',
+    completed: '已完成', failed: '失败', awaiting: '待补充信息', processing: '处理中', legacy: '历史文件', empty: '暂无处理记录，完成文档处理后可在此调取文件。',
+    originalFile: '原始文件 / 任务', owner: '所属账号', preAccountFile: '启用账号系统前的文件', type: '类型', status: '状态', recordedAt: '记录时间', filesAndDetails: '文件与详情', details: '详情',
+    dialogTitle: '处理记录', taskId: '任务编号', file: '文件', updatedAt: '更新时间', currentStep: '当前步骤：{step}', processingNote: '处理说明：{message}',
+    pending: '排队中', interrupted: '服务重启中断'
+  },
+  audit: {
+    userId: '用户 ID', allCategories: '全部分类', allResults: '全部结果', success: '成功', failed: '失败', actionKeyword: '操作关键词', queryRefresh: '查询 / 刷新', accountType: '账号类型', departmentCode: '部门代码', resourceType: '资源类型', startTime: '开始时间', endTime: '结束时间', total: '共 {count} 条', summarySuccess: '成功 {count}', summaryFailed: '失败 {count}',
+    empty: '暂无匹配的操作记录', time: '时间', actor: '操作账号', signedOutSystem: '未登录 / 系统', category: '分类', action: '操作', resource: '资源', department: '部门', relatedRecord: '关联记录', result: '结果', maskedIp: '来源 IP（脱敏）',
+    categories: { auth: '登录与认证', account: '账号与权限', cv: 'CV 处理', jd: 'JD 处理', file: '文件下载', library: '库与资源查询', admin: '后台查询', system: '其他系统操作' }
+  },
+  admin: {
+    users: '用户管理', audit: '操作日志', files: '任务与文件', searchAccount: '搜索账号', search: '查询', createAccount: '创建账号', noAccounts: '暂无账号', account: '账号', identityType: '身份 / 账号类型', status: '状态', enabled: '启用', disabled: '停用', tasks: '任务数', operations: '操作数', lastLogin: '最近登录', actions: '操作',
+    superadmin: '超级管理员', administrator: '管理员', member: '用户', grantAdmin: '授权管理员', revokeAdmin: '收回管理员', permissions: '权限设置', resetPassword: '重置密码', records: '记录', neverSignedIn: '未登录',
+    editDialog: '账号与功能权限', createDialog: '创建账号', accountPlaceholder: '账号名称或公司邮箱', identity: '身份', regularUser: '普通用户', accountType: '账号类型', accountTypePlaceholder: '例如 standard、hr、trial', availableFeatures: '可用功能', adminAllFeatures: '管理员可使用全部功能。', accountStatus: '账号状态', initialPasswordHelp: '初始密码为 123456，用户首次登录后需修改；账号名含 test 的测试账号除外。', cancel: '取消', save: '保存',
+    featureCv: 'CV 处理', featureJd: 'JD 处理', featureLibrary: 'JD 库', featureTemplates: '模板管理', featureTerminology: '术语库', statUsers: '账号总数', statActive: '启用账号', statLoggedIn: '当前登录', statTasks: '处理任务', statOperations: '操作记录',
+    fillRequired: '请填写账号和账号类型', saved: '账号已保存', resetConfirm: '将 {email} 的密码重置为 123456，并退出其所有登录会话？', resetDone: '密码已重置，首次登录需修改',
+    grantConfirm: '将 {email} 授权为管理员？其当前登录会话会退出，并需重新登录。', grantDone: '管理员授权已完成', revokeConfirm: '收回 {email} 的管理员权限？其当前登录会话会退出。', revokeDone: '管理员权限已收回', confirmReset: '重置', confirmGrant: '授权', confirmRevoke: '收回'
+  },
+  recruitment: {
+    workspaceAria: '招聘工具工作区', salaryTab: '薪资方案', socialTab: '社保确认', ratesTab: 'Hourly / Daily Rate', rulesTab: '固定规则', candidateInfo: '候选人信息', instructions: '使用说明', loadExample: '载入原表示例', addQuote: '新增报价',
+    statusHint: '白色可填 · 灰色固定 / 自动计算 · 输入仅本页有效，刷新后清空', sourceExample: '原表示例', clearExample: '清空示例', contextTitle: '候选人信息（选填）', candidateCDD: '候选人 CDD', candidatePlaceholder: '姓名或代号', ownerPE: '负责人 PE', ownerPlaceholder: '负责人', positionTitle: '职位 Title', positionPlaceholder: '拟入职职位', onboardDate: '预计入职日期',
+    notesTitle: '使用说明与计算口径', notesIntro: '依据《薪资计算.xlsx》测算，政策生效日期未提供。输入仅保留本页，刷新或离开后清空。原表示例的各报价已分别联动基数，可能与原表共用 20,000 元基数时不同。', annualPackageTitle: '候选人年包', annualPackageFormula: '月薪 × 12 + 驻场津贴 + 年终奖 + 项目奖金 + 年度福利 + 年包补充公积金。除月薪外均为年度金额。', increaseTitle: '涨幅', increaseFormulaLong: 'ROUND((报价年包 − 当前年包) ÷ 当前年包, 2)，保留原表先取两位小数再显示百分比的规则。', rateFormulaTitle: 'Hourly / Daily Rate', rateFormulaLong: '(年包 − 上海年包已含补充公积金 + 公司月缴费 × 12 + 可选 Overhead) ÷ 1,880；Daily Rate = 未取整的 Hourly Rate × 8，展示时保留两位小数。', benefitsTitle: '福利与补充公积金', benefitsLong: '白色字段允许手填。原表福利示例合计 5,800 元；未提供各项名称或性别、销售电话费规则，因此不自动分配。上海年包补充公积金示例为月薪 × 8% × 12，需核对城市后填写。', linkageTitle: '与原表的联动差异', linkageLong: '每份报价使用自己的月薪计算缴费，不再共用 B3:B7 的工资输入。老员工可输入上年度月平均工资。', correctionsTitle: '原表差异与保留口径', correctionsLong: '北京 C26:E26 原引用合肥 AM5，已按用户确认改为北京对应成本（AM4）。上海原 AL3 乘 2 且年包另计一份，已取消倍乘，并在企业成本中扣除年包已含补充公积金，改按实际缴费计一次。',
+    salaryTitle: '当前薪资与报价', salaryDesc: '月薪以元 / 月录入，其余金额以元 / 年录入。无此项请填 0，空白不计为 0。', quoteCount: '{count} 份报价 · CNY', compensationItem: '薪酬项目', currentSalary: '当前薪资', baseline: '涨幅基准', nameAria: '{name}名称', actionAria: '{name}操作', copyQuote: '复制报价', removeQuote: '移除报价', payLocation: '社保公积金缴纳地', linkedByQuote: '按报价分别联动', currentCompareOnly: '当前薪资仅用于年包比较', locationAria: '{name}缴纳地', fieldInfo: '{field}说明', fillPlaceholder: '待填写', monthlyTimesTwo: '月薪 × 2', fixedReadonly: '固定，不可修改', planNotes: '方案备注', planNotesPlaceholder: '谈薪备注（选填）', notesAria: '{name}备注', packageUnit: 'Total Package · 元 / 年', packageIncrease: '年包涨幅', increaseFormula: '按原表 ROUND(涨幅, 2)', baselineValue: '基准', inputStatus: '录入状态', missingCount: '待填 {count} 项', packageCalculated: '年包已计算', packageFoot: 'Total Package 为原表给候选人展示的年包，包含所填福利及补充公积金，不等同于税后到手收入。当前年包为空或为 0 时，不计算涨幅。',
+    socialTitle: '五险一金金额确认', socialDesc: '选择一份报价，查看该缴纳地每个险种的基数、比例和月度金额。', socialQuoteAria: '社保报价选择', location: '缴纳地', salarySource: '基数工资来源', newEmployeeSalary: '新员工：使用报价月薪', existingEmployeeSalary: '老员工：上年度月平均工资', quotedSalaryLinked: '报价月薪（联动）', priorYearAverage: '上年度月平均工资', employeeMonthly: '个人月缴纳', employerMonthly: '公司月成本', combinedMonthly: '双方月度合计', basesNote: '{city}社保基数 {socialMin}–{socialMax}；公积金基数 {housingMin}–{housingMax} 元 / 月。比例和上下限只读。', fillFirst: '请先填写{field}，系统会自动计算各险种金额。', contributionItem: '缴费项目', contributionBase: '缴费基数', employeeRate: '个人比例', employeeAmount: '个人金额 / 月', employerRate: '公司比例', employerAmount: '公司金额 / 月', shWarning: '上海补充公积金已去重：公司按公积金基数 × 8% 取整，仅计一份。汇总企业成本时先扣除年包中已包含的补充公积金，再加入实际公司缴费；普通公积金仍按 7% 计算。', roundingFoot: '个人养老、医疗、失业向上取 1 位小数；公司对应险种取 2 位小数；公积金取整数。原表未设置的项目按 0 参与合计，不代表已核实当前政策。',
+    ratesTitle: '各工作地的 Hourly / Daily Rate', ratesDesc: '年包经补充公积金去重后加公司五险一金年成本，再按固定工时折算。用于 HR 内部成本测算。', costUnit: '成本单位', compareLocations: '比较工作地', fixedCaption: '1,880 小时 / 年 · 8 小时 / 天 · Overhead 169,200 元 / 年', compactPolicy: '北京按本地成本计算 · 上海补充公积金已去重', viewBasis: '查看口径', selectLocation: '请选择至少一个工作地进行比较。', workLocation: '工作地', packageShort: '年包 {amount}', perHour: '元 / 小时', perDay: '元 / 天', excludingOverhead: '不含 Overhead', includingOverhead: '含 Overhead', employerMonthlyShort: '公司月缴费 {amount}', packageDeduction: '年包去重 {amount} / 年', ratesFoot: '缺少年包组成项或基数工资时显示“—”。各城市使用相同的手填年包比较；切换城市不会自动调整年包补充公积金或福利，请先在薪资方案中核对。',
+    rulesTitle: '原表固定规则', rulesDesc: '灰色区域只读。原始来源为《薪资计算.xlsx》的“招聘工具”工作表。', salaryMonths: '年发薪月数', twelveMonths: '12 个月', quoteBonus: '报价年终奖', currentEditable: 'C15:E15，当前薪资可手填', annualHours: '年度工时', hours1880: '1,880 小时', annualOverhead: '年度 Overhead', yuan169200: '169,200 元', socialRange: '社保基数范围', housingRange: '公积金基数范围', housingRates: '个人 / 公司公积金', source: '来源', fullFormula: '查看完整公式与口径说明', rulesFoot: '未提供个税、税后收入或更多城市的规则，暂不计算。当前页面不会保存谈薪记录或发送给候选人。', loading: '正在验证管理员权限并加载招聘规则…',
+    rows: { basePay: '税前月薪', months: '年发薪月数', onsite: '驻场津贴', annualBonus: '年终奖', projectBonus: '项目奖金', benefits: '年度福利', supplementary: '年包补充公积金' },
+    units: { basePay: 'Base Pay · 元 / 月', months: 'Salary Month', onsite: 'Onsite Allowance · 元 / 年', annualBonus: 'Annual Bonus · 元 / 年', projectBonus: 'Project Bonus · 元 / 年', benefits: 'Yearly Benefits · 元 / 年', supplementary: 'Supplementary Housing Fund · 元 / 年' },
+    hints: { onsite: '原表直接加到年包，此处录入全年津贴总额。', benefits: '原表示例合计 5,800 元；需人工核对性别相关福利和销售电话费。', supplementary: '此项为年包手填金额，与公司缴费明细区分。原表上海示例为月薪 × 8% × 12；切换城市后请重新核对。' },
+    cities: { SH: '上海', BJ: '北京', HF: '合肥', SY: '沈阳', WH: '芜湖' }, contributions: { pension: '养老保险', medical: '医疗保险', serious: '大病医疗', unemployment: '失业保险', maternity: '生育保险', injury: '工伤保险', housing: '住房公积金', supplemental: '补充公积金' }, notSet: '未设置', fixedThree: '固定 3 元', roundedEight: '8% · 取整', defaultCurrent: '当前薪资', defaultQuote: '报价 {number}', copySuffix: '{name} 副本'
   },
   terminology: {
     searchPlaceholder: '搜索中英文术语、定义或别名',
@@ -350,6 +407,9 @@ export default {
     historyDesc: '可在左下角筛选条件中按处理状态、输出语言、内容类型等维度查看历史处理记录',
     templatesDesc: '管理简历 PPT 模板，上传新版本',
     cvLibraryDesc: '按部门归档已完成的 CV，并按目标岗位快速筛选和下载。',
-    jdLibraryDesc: '管理岗位描述，上传和维护内部 JD，按类别和语言分类检索'
+    jdLibraryDesc: '管理岗位描述，上传和维护内部 JD，按类别和语言分类检索',
+    recruitmentToolsDesc: '比较薪资方案、五险一金与各工作地的内部成本。',
+    offboardingToolsDesc: '管理离职工具与相关流程。',
+    adminDesc: '管理账号、权限、操作日志及归档文件。'
   }
 }

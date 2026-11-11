@@ -9,7 +9,7 @@ import {
   regenerateJDConversion,
   saveJDConversion
 } from '@/api/jd-conversion'
-import { i18n } from '@/locales'
+import { i18n, localizeApiMessage } from '@/locales'
 import type { JDContent, TaskStatus, ProcessingStep } from '@/types'
 import type { JDPositionRecognitionSource, JDTargetPositionSource, JDConversionTask } from '@/api/jd-conversion'
 
@@ -249,7 +249,8 @@ export const useProcessingStore = defineStore('processing', () => {
           ? String(res.data.message || '')
           : ''
         taskSteps.value = (res.data.steps || []) as ProcessingStep[]
-        taskError.value = res.data.error_message || ('error' in res.data ? res.data.error : null) || null
+        const serverError = res.data.error_message || ('error' in res.data ? res.data.error : null) || null
+        taskError.value = serverError ? localizeApiMessage(serverError, 'upload.previewFailedHint') : null
 
         if (res.data.status === 'awaiting_input') {
           requiredInput.value = res.data.required_input || { field: 'location', reason: 'missing_source_location' }
@@ -341,7 +342,9 @@ export const useProcessingStore = defineStore('processing', () => {
     taskStatus.value = task.status
     taskProgress.value = task.progress
     taskSteps.value = task.steps || []
-    taskError.value = task.error_message || null
+    taskError.value = task.error_message
+      ? localizeApiMessage(task.error_message, 'upload.previewFailedHint')
+      : null
 
     if (task.status === 'awaiting_input') {
       requiredInput.value = task.required_input || { field: 'location', reason: 'missing_source_location' }

@@ -4,6 +4,7 @@ import threading
 from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 from pptx import Presentation
 from pptx.util import Cm
 
@@ -62,6 +63,30 @@ async def test_slow_llm_does_not_block_event_loop(monkeypatch):
     finally:
         release.set()
         assert await task == "ok"
+
+
+@pytest.mark.asyncio
+async def test_insufficient_llm_balance_is_safe_and_not_retried(monkeypatch):
+    calls = 0
+
+    def completion(**kwargs):
+        nonlocal calls
+        calls += 1
+        raise RuntimeError(
+            "litellm.BadRequestError: OpenAIException - Insufficient Balance "
+            "(request_id: sensitive-provider-request-id)"
+        )
+
+    monkeypatch.setitem(sys.modules, "litellm", SimpleNamespace(completion=completion))
+
+    with pytest.raises(HTTPException) as error:
+        await LLMService.call_llm_json("test")
+
+    assert calls == 1
+    assert error.value.status_code == 503
+    assert error.value.detail == "模型服务余额不足，请联系管理员充值或切换模型后重试"
+    assert error.value.headers == {"X-LLM-Error-Code": "insufficient_balance"}
+    assert "request-id" not in error.value.detail
 
 
 def test_work_continues_into_partial_page_without_losing_tasks():
